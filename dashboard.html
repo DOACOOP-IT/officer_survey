@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 
 <head>
@@ -4161,7 +4161,7 @@ function generateReportHtml() {
           return;
         }
 
-        const targetUrl = adminWebAppUrl + '?counter=' + staff.id;
+        const targetUrl = 'https://liff.line.me/2011164567-UjK6uTMI?counter=' + staff.id;
         const qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(targetUrl);
 
         const canvas = document.getElementById('qrCanvas');

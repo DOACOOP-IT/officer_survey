@@ -2,8 +2,9 @@
 
 // QR Code เปิดหน้า GitHub Pages ผ่านระบบลงทะเบียนกลาง เพื่อรับ gate token ก่อนประเมิน
 const SURVEY_FRONTEND_URL = 'https://doacoop-it.github.io/officer_survey/';
+const SURVEY_LIFF_URL = 'https://liff.line.me/2011164567-UjK6uTMI';
 const REGISTER_LIFF = 'https://liff.line.me/2011164567-xmPJaYwb';
-const MY_LIFF_ID = '2011164567-xmPJaYwb';
+const MY_LIFF_ID = '2011164567-UjK6uTMI';
 
 /**
  * เรียก GAS API พร้อมรองรับ redirect ที่อาจทำงานผิดพลาดบน LINE WebView
@@ -683,6 +684,7 @@ var allStaffData = [];
   function printQRCodes() {
     window.print();
   }
+
 
 
 
