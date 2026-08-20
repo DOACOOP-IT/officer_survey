@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบประเมินความพึงพอใจเจ้าหน้าที่</title>
+
+  <!-- CSS ภายนอกและชุดไอคอนพรีเมียม -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- SweetAlert2 สำหรับการแจ้งเตือนพรีเมียม -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+
+  <!-- Global Error Handler -->
+  <script>
+    window.onerror = function (message, source, lineno, colno, error) {
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          icon: 'error',
+          title: 'Frontend Error',
+          text: message + ' (Line: ' + lineno + ')',
+          confirmButtonColor: '#ef4444'
+        });
+      } else {
+        alert('Frontend Error: ' + message);
+      }
+    };
+  </script>
+
+  <!-- นำเข้ารูปแบบสไตล์หลักจาก styles.html -->
+  <?!= include('styles'); ?>
+</head>
+
+<body>
+
+  <!-- แผ่นการพิมพ์สำหรับจัดเรียงหน้า A4 QR Codes สำหรับ Admin สั่งพิมพ์โดยเฉพาะ -->
+  <div id="printSheet" class="print-sheet"></div>
+
+  <!-- คอนเทนเนอร์หลัก (Main Container) -->
+  <div class="container">
+
+    <!-- หน้าต่างสปินเนอร์ตอนกำลังโหลดข้อมูล -->
+    <div id="loadingSpinner" class="view-section active-view" style="text-align: center; padding: 40px 0;">
+      <i class="fas fa-spinner fa-spin" style="font-size: 40px; color: var(--primary-color); margin-bottom: 15px;"></i>
+      <p class="loading-text">กำลังโหลดระบบฐานข้อมูล...</p>
+    </div>
+
+
+
+    <!-- 1. วิวแรก: หน้าสำหรับผู้ดูแลระบบและจำลองการใช้งาน (Admin & Simulation View) -->
+    <div id="view-landing" class="view-section">
+      <div class="admin-card">
+        <div class="admin-navbar">
+          <div class="admin-title" style="color: var(--text-primary);">
+            <i class="fas fa-qrcode"></i>
+            ระบบจัดการประเมิน QR Code
+          </div>
+          <div class="admin-tabs">
+            <button class="tab-btn" onclick="switchAdminTab('sim')">
+              <i class="fas fa-mobile-alt"></i> จำลองประเมิน
+            </button>
+            <button class="tab-btn active" onclick="switchAdminTab('qr')">
+              <i class="fas fa-print"></i> บอร์ด QR Code
+            </button>
+          </div>
+        </div>
+
+        <!-- แถบเครื่องมือจัดการการแสดงผล -->
+        <div class="control-bar" style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+          <div class="layout-toggle">
+            <button id="btnGrid" class="btn-layout active" onclick="setLayout('grid')" title="แสดงแบบ Grid"><i
+                class="fas fa-th"></i></button>
+            <button id="btnList" class="btn-layout" onclick="setLayout('list')" title="แสดงแบบ List"><i
+                class="fas fa-list"></i></button>
+          </div>
+        </div>
+
+        <!-- ส่วนที่ 1: การจำลองการสแกน QR Code -->
+        <div id="simContainer" style="display: none;">
+          <div class="card-header"
+            style="text-align: left; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
+            <h1 style="font-size: 1.2rem; color: var(--text-primary);">ทดสอบระบบประเมิน</h1>
+            <p style="font-size: 0.9rem; color: var(--text-secondary);">คลิกที่รายชื่อเพื่อจำลองการสแกน QR Code
+              ของเจ้าหน้าที่แต่ละท่าน</p>
+          </div>
+          <div id="simulationGrid" class="simulation-grid">
+            <!-- เติมข้อมูลเจ้าหน้าที่ด้วย Javascript -->
+          </div>
+        </div>
+
+        <!-- ส่วนที่ 2: การออกบอร์ด QR Code สำหรับนำไปแปะหน้าร้าน -->
+        <div id="qrContainer">
+          <div id="urlWarning" class="form-group"
+            style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger-color); border-radius: 12px; padding: 12px; margin-bottom: 20px;">
+            <p style="font-size: 12px; color: #fca5a5; line-height: 1.5;">
+              <i class="fas fa-exclamation-triangle" style="margin-right: 6px;"></i>
+              <strong>แจ้งเตือน:</strong> ตรวจพบว่าแอปยังไม่ได้ Deploy เป็น Web App ของแท้ทำให้ไม่พบลิงก์ QR Code จริง!
+              คิวอาร์โค้ดนี้จะใช้ชั่วคราว หากทดสอบเสร็จแนะนำให้กด Deploy ใน Google Script เพื่อใช้งานเต็มรูปแบบ
+            </p>
+          </div>
+          <button class="btn" style="width: 100%; margin-bottom: 1.5rem;" onclick="printQRCodes()">
+            <i class="fas fa-print"></i> พิมพ์ QR Codes ทั้งหมด (สำหรับกระดาษ A4)
+          </button>
+          <div id="qrGrid" class="qr-grid">
+            <!-- เติมข้อมูล QR code ของแต่ละคนด้วย Javascript -->
+          </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 2rem; font-size: 0.8rem; color: var(--text-secondary);">
+          <i class="far fa-clock"></i> เวลาปัจจุบัน: <span class="live-time"></span>
+        </div>
+      </div>
+
+
+    </div>
+
+    <!-- 2. วิวที่สอง: หน้าประเมินผลความพึงพอใจเจ้าหน้าที่ (Evaluation View) -->
+    <div id="view-evaluation" class="view-section">
+      <!-- ย้ายเวลาสแกนออกมาอยู่นอกกล่อง Card -->
+      <div class="time-container-outer">
+        <div class="time-display">
+          <i class="far fa-clock"></i> เวลาสแกน: <strong id="displayScanTime">-</strong>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header" style="text-align: center; margin-bottom: 1rem;">
+          <img src="https://i.ibb.co/WpF86bhw/Logo-50-Year.png" alt="50 Years Logo"
+            style="max-height: 80px; margin-bottom: 15px;">
+          <h1>ประเมินความพึงพอใจ</h1>
+          <p>เพื่อพัฒนาคุณภาพการให้บริการให้ดียิ่งขึ้น</p>
+        </div>
+
+        <!-- บัตรโปรไฟล์เจ้าหน้าที่ผู้ถูกประเมิน -->
+        <div class="officer-info">
+          <div class="avatar" id="staffAvatar">
+            <!-- ถ้าเจ้าหน้าที่มีรูปถ่ายจะสลับมาแสดงรูปแทนไอคอน และกดดูรูปเต็มได้ -->
+            <i class="fas fa-user-tie" id="staffAvatarIcon"></i>
+            <img id="staffAvatarImg" alt="" style="display: none;">
+            <span class="avatar-zoom-hint"><i class="fas fa-magnifying-glass-plus"></i></span>
+          </div>
+          <div class="officer-details">
+            <h2 id="staffName">กำลังโหลดรายชื่อ...</h2>
+            <p><span id="staffDept">ฝ่ายงาน</span> • <span id="staffCounter">เคาท์เตอร์</span></p>
+          </div>
+        </div>
+
+
+
+        <!-- 2.1 ระดับความพึงพอใจ (Animated SVGs) -->
+        <div class="rating-group">
+          <label class="rating-label">ระดับความพึงพอใจของคุณ</label>
+          <div class="stars">
+            <!-- ดีมาก -->
+            <input type="radio" id="star3" name="rating" value="3">
+            <label for="star3">
+              <div class="emoji-icon">😄</div>
+              <span>ดีมาก</span>
+            </label>
+            <!-- ดี -->
+            <input type="radio" id="star2" name="rating" value="2">
+            <label for="star2">
+              <div class="emoji-icon">😐</div>
+              <span>ดี</span>
+            </label>
+            <!-- น้อย -->
+            <input type="radio" id="star1" name="rating" value="1">
+            <label for="star1">
+              <div class="emoji-icon">😞</div>
+              <span>น้อย</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 2.2 ข้อเสนอแนะเพิ่มเติม -->
+        <div class="form-group">
+          <label for="commentInput">ข้อคิดเห็นหรือข้อเสนอแนะเพิ่มเติม (ไม่บังคับ)</label>
+          <div class="input-icon-wrapper">
+            <i class="fas fa-comment-dots input-icon"></i>
+            <textarea id="commentInput" class="form-control" placeholder="พิมพ์ข้อเสนอแนะของคุณที่นี่..."></textarea>
+          </div>
+        </div>
+
+        <!-- ปุ่มกดส่งแบบประเมินหลัก -->
+        <button id="btnSubmitForm" class="btn" onclick="submitEvaluation()">
+          <span class="spinner"></span>
+          <span class="btn-text"><i class="fas fa-paper-plane"></i> ส่งแบบประเมิน</span>
+        </button>
+      </div>
+
+
+    </div>
+
+    <!-- 3. วิวที่สาม: หน้าจอแจ้งเตือน (Error View) กรณีไม่ระบุรหัสเจ้าหน้าที่ -->
+    <div id="view-error" class="view-section" style="padding-top: 10vh;">
+      <div class="card" style="text-align: center; border-top: 5px solid var(--primary-light);">
+        <i class="fas fa-qrcode" style="font-size: 5rem; color: var(--primary-light); margin-bottom: 1.5rem;"></i>
+        <h2 style="color: var(--primary-dark); margin-bottom: 1rem; font-size: 1.5rem;">ยินดีต้อนรับสู่ระบบประเมิน</h2>
+        <p style="color: var(--text-main); font-size: 1.1rem; margin-bottom: 1rem;">
+          รบกวนสแกน <b>QR Code</b> ประจำตัวของเจ้าหน้าที่<br>เพื่อเริ่มให้คะแนนความพึงพอใจนะคะ/ครับ 😊
+        </p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- กล่องดูรูปเต็ม (Lightbox) — เปิดเมื่อกดที่รูปถ่ายเจ้าหน้าที่ -->
+  <div id="avatarLightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="รูปถ่ายเจ้าหน้าที่">
+    <button type="button" class="lightbox-close" id="lightboxClose" aria-label="ปิด">
+      <i class="fas fa-xmark"></i>
+    </button>
+    <figure class="lightbox-figure">
+      <img id="lightboxImg" alt="">
+      <figcaption id="lightboxCaption"></figcaption>
+    </figure>
+  </div>
+
+  <div class="global-footer">
+    &copy; 2026 ฝ่ายสารสนเทศ<br>สหกรณ์ออมทรัพย์กรมวิชาการเกษตร จำกัด
+  </div>
+
+  <!-- Modern Animated Bubbles Background -->
+  <div class="modern-bg">
+    <ul class="bubbles">
+      <li></li>
+      <li></li>
+      <li></li>
+      <li></li>
+      <li></li>
+      <li></li>
+      <li></li>
+      <li></li>
+      <li></li>
+      <li></li>
+    </ul>
+  </div>
+
+  <!--
+    ส่งค่าจากเซิร์ฟเวอร์ผ่าน data attribute แทนการเขียนลงในสคริปต์โดยตรง
+    เพราะ scriptlet ของ Apps Script จะ escape แบบ HTML
+    ถ้าค่ามีเครื่องหมายคำพูดปนมาจะทำให้สคริปต์พัง
+  -->
+  <div id="serverData" data-staff-id="<?= staffId || '' ?>" data-scan-time="<?= scanTime || '' ?>"
+    data-is-admin="<?= serverIsAdmin || 'false' ?>" style="display: none;"></div>
+  <script>
+    var serverDataEl = document.getElementById('serverData');
+    var serverStaffId = serverDataEl.getAttribute('data-staff-id') || '';
+    var scanTime = serverDataEl.getAttribute('data-scan-time') || '';
+    var serverIsAdmin = serverDataEl.getAttribute('data-is-admin') || 'false';
+  </script>
+  <!-- ดึงโค้ดเขียนสคริปต์หลักมาใช้งาน -->
+  <?!= include('javascript'); ?>
+</body>
+
+</html>

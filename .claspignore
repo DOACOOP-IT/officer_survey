@@ -1,0 +1,12 @@
+# Ignore everything by default
+**/**
+*
+
+# Whitelist allowed files
+!Code.js
+!index.html
+!dashboard.html
+!javascript.html
+!styles.html
+!vfs_fonts.html
+!appsscript.json
