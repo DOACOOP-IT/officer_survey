@@ -145,8 +145,30 @@ var allStaffData = [];
                   // มีข้อมูลแล้ว -> ดึงข้อมูลเจ้าหน้าที่เข้าหน้าประเมินเลย
                   loadStaffDataToEvaluate();
                 } else {
-                  // ยังไม่มีข้อมูล -> เด้งไปหน้าลงทะเบียน
-                  redirectToRegistration();
+                  // ยังไม่มีข้อมูล -> แสดง Alert แจ้ง UID แล้วค่อยพาไปหน้าลงทะเบียน
+                  document.getElementById('loadingSpinner').style.display = 'none';
+                  Swal.fire({
+                    icon: 'warning',
+                    title: 'ยังไม่พบสิทธิ์การประเมิน',
+                    html: '<div style="text-align:left; font-size:0.9rem; line-height:1.5;">' +
+                          '<p><b>LINE UID ของท่าน:</b></p>' +
+                          '<div style="background:#f1f5f9; padding:8px 10px; border-radius:6px; font-family:monospace; font-weight:bold; color:#0284c7; word-break:break-all; user-select:all; border:1px solid #cbd5e1; margin-bottom:10px;">' + lineUid + '</div>' +
+                          '<p style="color:#ef4444; font-size:0.85rem; margin-bottom:8px;">⚠️ ไม่พบบัญชีนี้ในชีต db_member_login</p>' +
+                          '<p style="color:#64748b; font-size:0.85rem;">ระบบกำลังนำท่านไปสู่หน้าลงทะเบียน...</p></div>',
+                    confirmButtonText: 'ไปลงทะเบียนทันที',
+                    confirmButtonColor: '#06c755',
+                    showCancelButton: true,
+                    cancelButtonText: 'ลองใหม่อีกครั้ง',
+                    cancelButtonColor: '#64748b',
+                    timer: 8000,
+                    timerProgressBar: true
+                  }).then(function(result) {
+                    if (result.isConfirmed || result.dismiss === Swal.DismissReason.timer) {
+                      redirectToRegistration();
+                    } else {
+                      location.reload();
+                    }
+                  });
                 }
               })
               .catch(function(err) {
@@ -676,6 +698,7 @@ var allStaffData = [];
   function printQRCodes() {
     window.print();
   }
+
 
 
 
