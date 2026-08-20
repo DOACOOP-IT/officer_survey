@@ -136,39 +136,23 @@ var allStaffData = [];
         } else {
           liff.getProfile().then(function(profile) {
             var lineUid = profile.userId;
-            gateToken = lineUid; // เก็บไว้ส่งตอนบันทึกผลประเมิน
+            gateToken = lineUid;
 
-            // เช็คว่ามีข้อมูลใน Google Sheet หรือยัง
-            callGasApi('verifyLineUser', { lineUid: lineUid })
+            var savedMemNo = localStorage.getItem('officer_survey_member_no') || '';
+
+            // ตรวจสอบสิทธิ์เบื้องหลังทันที
+            callGasApi('verifyLineUser', { lineUid: lineUid, memberNo: savedMemNo })
               .then(function(res) {
                 if (res && res.success) {
-                  // มีข้อมูลแล้ว -> ดึงข้อมูลเจ้าหน้าที่เข้าหน้าประเมินเลย
+                  // มีข้อมูลแล้ว -> จำค่าไว้แล้วเข้าหน้าประเมินเลยทันที ไม่ต้องแวะหน้าลงทะเบียน
+                  if (res.memberData && res.memberData.memberNo) {
+                    localStorage.setItem('officer_survey_member_no', res.memberData.memberNo);
+                    localStorage.setItem('officer_survey_member_name', res.memberData.name || '');
+                  }
                   loadStaffDataToEvaluate();
                 } else {
-                  // ยังไม่มีข้อมูล -> แสดง Alert แจ้ง UID แล้วค่อยพาไปหน้าลงทะเบียน
-                  document.getElementById('loadingSpinner').style.display = 'none';
-                  Swal.fire({
-                    icon: 'warning',
-                    title: 'ยังไม่พบสิทธิ์การประเมิน',
-                    html: '<div style="text-align:left; font-size:0.9rem; line-height:1.5;">' +
-                          '<p><b>LINE UID ของท่าน:</b></p>' +
-                          '<div style="background:#f1f5f9; padding:8px 10px; border-radius:6px; font-family:monospace; font-weight:bold; color:#0284c7; word-break:break-all; user-select:all; border:1px solid #cbd5e1; margin-bottom:10px;">' + lineUid + '</div>' +
-                          '<p style="color:#ef4444; font-size:0.85rem; margin-bottom:8px;">⚠️ ไม่พบบัญชีนี้ในชีต db_member_login</p>' +
-                          '<p style="color:#64748b; font-size:0.85rem;">ระบบกำลังนำท่านไปสู่หน้าลงทะเบียน...</p></div>',
-                    confirmButtonText: 'ไปลงทะเบียนทันที',
-                    confirmButtonColor: '#06c755',
-                    showCancelButton: true,
-                    cancelButtonText: 'ลองใหม่อีกครั้ง',
-                    cancelButtonColor: '#64748b',
-                    timer: 8000,
-                    timerProgressBar: true
-                  }).then(function(result) {
-                    if (result.isConfirmed || result.dismiss === Swal.DismissReason.timer) {
-                      redirectToRegistration();
-                    } else {
-                      location.reload();
-                    }
-                  });
+                  // ยังไม่มีข้อมูลในระบบ -> เด้งไปหน้าลงทะเบียน
+                  redirectToRegistration();
                 }
               })
               .catch(function(err) {
@@ -632,6 +616,7 @@ var allStaffData = [];
       comment: document.getElementById('commentInput').value.trim(),
       // Backend ต้องตรวจ token กับระบบกลาง และใช้ข้อมูลสมาชิกจากผลตรวจเท่านั้น
       token: gateToken,
+      memberNo: localStorage.getItem('officer_survey_member_no') || '',
       isAdmin: serverIsAdmin === "true",
       signatureBase64: ""
     };
@@ -698,6 +683,7 @@ var allStaffData = [];
   function printQRCodes() {
     window.print();
   }
+
 
 
 
