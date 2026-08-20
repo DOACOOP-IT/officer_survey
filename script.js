@@ -2,8 +2,8 @@
 
 // QR Code เปิดหน้า GitHub Pages ผ่านระบบลงทะเบียนกลาง เพื่อรับ gate token ก่อนประเมิน
 const SURVEY_FRONTEND_URL = 'https://doacoop-it.github.io/officer_survey/';
-const LOGIN_LIFF = 'https://liff.line.me/2010640180-E85OIlZ4';
 const REGISTER_LIFF = 'https://liff.line.me/2011164567-xmPJaYwb';
+const MY_LIFF_ID = '2011164567-xmPJaYwb';
 
 /**
  * เรียก GAS API พร้อมรองรับ redirect ที่อาจทำงานผิดพลาดบน LINE WebView
@@ -117,27 +117,53 @@ var allStaffData = [];
         .then(function(res) { isDone = true; onGetAllStaffSuccess(res); })
         .catch(function(err) { isDone = true; onGetAllStaffFailure(err); });
     } else if (serverStaffId) {
-      // โหมดสแกน QR Code: ต้องผ่านระบบลงทะเบียนกลางก่อนเสมอ
+      // โหมดสแกน QR Code: เช็ค LIFF Login และ DB
       document.getElementById('loadingSpinner').style.display = 'block';
       document.getElementById('loadingSpinner').classList.add('active-view');
       
-      if (!gateToken) {
-        redirectToLogin();
-        return;
-      }
-      loadStaffDataToEvaluate();
+      initLiffAndCheckAuth();
     } else {
       // โหมดผู้ใช้งานทั่วไปที่ไม่ได้สแกน QR Code (ไม่มี ID)
       switchView('view-error');
     }
   }
 
-  function redirectToLogin() {
-    window.location.replace(LOGIN_LIFF + '?returnUrl=' + encodeURIComponent(window.location.href));
+  function initLiffAndCheckAuth() {
+    liff.init({ liffId: MY_LIFF_ID })
+      .then(function() {
+        if (!liff.isLoggedIn()) {
+          liff.login();
+        } else {
+          liff.getProfile().then(function(profile) {
+            var lineUid = profile.userId;
+            gateToken = lineUid; // เก็บไว้ส่งตอนบันทึกผลประเมิน
+
+            // เช็คว่ามีข้อมูลใน Google Sheet หรือยัง
+            callGasApi('verifyLineUser', { lineUid: lineUid })
+              .then(function(res) {
+                if (res && res.success) {
+                  // มีข้อมูลแล้ว -> ดึงข้อมูลเจ้าหน้าที่เข้าหน้าประเมินเลย
+                  loadStaffDataToEvaluate();
+                } else {
+                  // ยังไม่มีข้อมูล -> เด้งไปหน้าลงทะเบียน
+                  redirectToRegistration();
+                }
+              })
+              .catch(function(err) {
+                onGetStaffFailure('เชื่อมต่อฐานข้อมูลล้มเหลว: ' + (err.message || err));
+              });
+          }).catch(function(err) {
+            onGetStaffFailure('ดึงข้อมูล LINE ไม่สำเร็จ: ' + (err.message || err));
+          });
+        }
+      })
+      .catch(function(err) {
+        onGetStaffFailure('LIFF Init Failed: ' + (err.message || err));
+      });
   }
 
   function redirectToRegistration() {
-    window.location.replace(REGISTER_LIFF + '?returnUrl=' + encodeURIComponent(window.location.href));
+    window.location.replace(REGISTER_LIFF);
   }
 
   function loadStaffDataToEvaluate() {
@@ -650,6 +676,7 @@ var allStaffData = [];
   function printQRCodes() {
     window.print();
   }
+
 
 
 
