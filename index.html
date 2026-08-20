@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="th">
 
 <head>
@@ -31,7 +31,7 @@
   </script>
 
   <!-- นำเข้ารูปแบบสไตล์หลักจาก styles.html -->
-  <?!= include('styles'); ?>
+  <link rel="stylesheet" href="style.css?v=3">
 </head>
 
 <body>
@@ -238,21 +238,44 @@
     </ul>
   </div>
 
-  <!--
-    ส่งค่าจากเซิร์ฟเวอร์ผ่าน data attribute แทนการเขียนลงในสคริปต์โดยตรง
-    เพราะ scriptlet ของ Apps Script จะ escape แบบ HTML
-    ถ้าค่ามีเครื่องหมายคำพูดปนมาจะทำให้สคริปต์พัง
-  -->
-  <div id="serverData" data-staff-id="<?= staffId || '' ?>" data-scan-time="<?= scanTime || '' ?>"
-    data-is-admin="<?= serverIsAdmin || 'false' ?>" style="display: none;"></div>
+  <!-- ส่งค่าจากเซิร์ฟเวอร์ -->
+  <div id="serverData" data-staff-id="" data-scan-time="" data-gate-token="" data-is-admin="false" style="display: none;"></div>
   <script>
-    var serverDataEl = document.getElementById('serverData');
-    var serverStaffId = serverDataEl.getAttribute('data-staff-id') || '';
-    var scanTime = serverDataEl.getAttribute('data-scan-time') || '';
-    var serverIsAdmin = serverDataEl.getAttribute('data-is-admin') || 'false';
+    (function() {
+      // Extract parameters from URL when hosted statically
+      const urlParams = new URLSearchParams(window.location.search);
+      let localStaffId = urlParams.get('id') || urlParams.get('counter') || urlParams.get('staffId') || '';
+      let localIsAdmin = urlParams.get('page') === 'admin' || urlParams.get('admin') === 'true';
+      let localGateToken = urlParams.get('t') || '';
+
+      // Support for LIFF liff.state parameter (when opening in external browser)
+      const liffState = urlParams.get('liff.state');
+      if (liffState) {
+        const liffParams = new URLSearchParams(liffState.startsWith('?') ? liffState : '?' + liffState);
+        localStaffId = localStaffId || liffParams.get('id') || liffParams.get('counter') || liffParams.get('staffId') || '';
+        localIsAdmin = localIsAdmin || liffParams.get('page') === 'admin' || liffParams.get('admin') === 'true';
+        localGateToken = localGateToken || liffParams.get('t') || '';
+      }
+      
+      document.getElementById('serverData').setAttribute('data-staff-id', localStaffId);
+      document.getElementById('serverData').setAttribute('data-is-admin', localIsAdmin ? 'true' : 'false');
+      document.getElementById('serverData').setAttribute('data-gate-token', localGateToken);
+      
+      if (localStaffId) {
+         const now = new Date();
+         const thaiYear = now.getFullYear() + 543;
+         const dateStr = String(now.getDate()).padStart(2, '0') + '/' + 
+                         String(now.getMonth()+1).padStart(2, '0') + '/' + 
+                         thaiYear + ' ' + 
+                         String(now.getHours()).padStart(2, '0') + ':' + 
+                         String(now.getMinutes()).padStart(2, '0') + ':' + 
+                         String(now.getSeconds()).padStart(2, '0');
+         document.getElementById('serverData').setAttribute('data-scan-time', dateStr);
+      }
+    })();
   </script>
-  <!-- ดึงโค้ดเขียนสคริปต์หลักมาใช้งาน -->
-  <?!= include('javascript'); ?>
+  <script src="script.js?v=7"></script>
 </body>
 
 </html>
+
