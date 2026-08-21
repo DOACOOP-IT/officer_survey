@@ -31,7 +31,7 @@
   </script>
 
   <!-- นำเข้ารูปแบบสไตล์หลักจาก styles.html -->
-  <link rel="stylesheet" href="style.css?v=22">
+  <link rel="stylesheet" href="style.css?v=26">
 </head>
 
 <body>
@@ -43,20 +43,21 @@
   <div class="container">
 
     <!-- หน้าต่าง Skeleton โหลดข้อมูลความเร็วสูง (Fast Perceived Load) -->
+        <!-- หน้าต่างโหลดข้อมูลความเร็วสูง (Minimalist Speed Loader) -->
     <div id="loadingSpinner" class="view-section active-view">
       <div class="top-loader-bar"></div>
-      <div class="fast-skeleton-container">
-        <div class="shimmer-wave skeleton-avatar"></div>
-        <div class="shimmer-wave skeleton-title"></div>
-        <div class="shimmer-wave skeleton-subtitle"></div>
-        
-        <div class="skeleton-divider"></div>
-        
-        <div class="skeleton-rating-row">
-          <div class="shimmer-wave skeleton-star"></div>
-          <div class="shimmer-wave skeleton-star"></div>
-          <div class="shimmer-wave skeleton-star"></div>
+      <div class="speed-loader-card">
+        <div class="loader-logo-wrap">
+          <img src="https://i.ibb.co/WpF86bhw/Logo-50-Year.png" alt="Logo" class="loader-logo" />
+          <div class="loader-ripple"></div>
         </div>
+        <h3 class="loader-title">ระบบประเมินความพึงพอใจ</h3>
+        <p class="loader-subtitle">กำลังเข้าสู่ระบบ...</p>
+        <div class="loader-progress-track">
+          <div class="loader-progress-fill"></div>
+        </div>
+      </div>
+    </div>
 
         <div class="fast-pulse-badge">
           <i class="fas fa-bolt"></i> กำลังเปิดระบบประเมิน...
@@ -302,7 +303,7 @@
     })();
   </script>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script src="script.js?v=25"></script>
+  <script src="script.js?v=26"></script>
 </body>
 
 </html>
