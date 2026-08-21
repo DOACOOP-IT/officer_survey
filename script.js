@@ -1,7 +1,7 @@
 ﻿/**
  * ระบบประเมินความพึงพอใจการให้บริการเจ้าหน้าที่
  * สหกรณ์ออมทรัพย์กรมวิชาการเกษตร จำกัด
- * (Instant 0ms Load Architecture)
+ * (High-Speed Verification Flow)
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbxdJxJJMaB4MbESCEvmXShENHQ5OABt2in26CTS2MKFqkh_v9DRjvOu74FJRU0kNIF9/exec';
@@ -19,11 +19,7 @@ let serverIsAdmin = "false";
 let scanTime = "";
 let currentAvatarUrl = "";
 
-// Background Auth Promise tracker
-let authCheckPromise = null;
-let authCheckResult = null;
-
-// --- Staff Cache Helper (โหลด UI เจ้าหน้าที่ทันที 0ms) ---
+// --- Staff Cache Helper (แคชรูป/ชื่อเจ้าหน้าที่เพื่อความเร็วสูง) ---
 const STAFF_CACHE_PREFIX = 'officer_survey_staff_';
 const STAFF_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 ชม.
 
@@ -298,7 +294,6 @@ function startAppLogic() {
   });
 
   if (serverIsAdmin === "true") {
-    // โหมดแอดมิน
     document.getElementById('loadingSpinner').style.display = 'block';
     document.getElementById('loadingSpinner').classList.add('active-view');
     var isDone = false;
@@ -308,89 +303,59 @@ function startAppLogic() {
       .then(function(res) { isDone = true; onGetAllStaffSuccess(res); })
       .catch(function(err) { isDone = true; onGetAllStaffFailure(err); });
   } else if (serverStaffId) {
-    // [INSTANT 0ms LOAD]: แสดงหน้าจอประเมินทันที 0 วินาทีโดยไม่ต้องรอโหลด
-    document.getElementById('loadingSpinner').style.display = 'none';
-
-    var staffInfo = getCachedStaff(serverStaffId) || {
-      id: serverStaffId,
-      name: "เจ้าหน้าที่ประจำเคาน์เตอร์ " + serverStaffId,
-      department: "งานบริการสมาชิก",
-      counter: "เคาน์เตอร์ " + serverStaffId,
-      imageUrl: ""
-    };
-
-    renderStaffUI(staffInfo);
-
-    // ทำการตรวจสอบสิทธิ์และดึงข้อมูลเจ้าหน้าที่ล่าสุดใน Background
-    initLiffAndCheckAuthInBackground();
+    // แสดงตัวโหลดขณะตรวจเช็คความถูกต้องของสิทธิ์
+    document.getElementById('loadingSpinner').style.display = 'block';
+    document.getElementById('loadingSpinner').classList.add('active-view');
+    initLiffAndCheckAuth();
   } else {
     switchView('view-error');
   }
 }
 
-function initLiffAndCheckAuthInBackground() {
-  authCheckPromise = new Promise(function(resolve, reject) {
-    liff.init({ liffId: MY_LIFF_ID })
-      .then(function() {
-        if (!liff.isLoggedIn()) {
-          liff.login();
-        } else {
-          liff.getProfile().then(function(profile) {
-            var lineUid = profile.userId;
-            gateToken = lineUid;
+function initLiffAndCheckAuth() {
+  liff.init({ liffId: MY_LIFF_ID })
+    .then(function() {
+      if (!liff.isLoggedIn()) {
+        liff.login();
+      } else {
+        liff.getProfile().then(function(profile) {
+          var lineUid = profile.userId;
+          gateToken = lineUid;
 
-            // ตรวจสอบฐานข้อมูลจริงแบบ Real-time ในเบื้องหลัง
-            callGasApi('getEvaluationInitData', { lineUid: lineUid, staffId: serverStaffId })
-              .then(function(res) {
-                authCheckResult = res;
-                if (res && res.success && res.memberData) {
-                  // บันทึกข้อมูลสมาชิกล่าสุด
-                  localStorage.setItem('officer_survey_member_no', res.memberData.memberNo || '');
-                  localStorage.setItem('officer_survey_member_name', res.memberData.name || '');
+          // เรียก Fast 1-Shot API: ตรวจสิทธิ์ใน Google Sheets + ดึงข้อมูลเจ้าหน้าที่
+          callGasApi('getEvaluationInitData', { lineUid: lineUid, staffId: serverStaffId })
+            .then(function(res) {
+              if (res && res.success && res.memberData) {
+                // บันทึกเลขสมาชิกปัจจุบัน
+                localStorage.setItem('officer_survey_member_no', res.memberData.memberNo || '');
+                localStorage.setItem('officer_survey_member_name', res.memberData.name || '');
 
-                  if (res.staff) {
-                    setCachedStaff(serverStaffId, res.staff);
-                    // อัปเดตข้อมูลเจ้าหน้าที่บนหน้าจอให้เป็นข้อมูลล่าสุด
-                    document.getElementById('staffName').textContent = res.staff.name;
-                    document.getElementById('staffDept').textContent = res.staff.department;
-                    document.getElementById('staffCounter').textContent = res.staff.counter;
-                    setStaffAvatar(res.staff.imageUrl, res.staff.showImage);
-                  }
-                  resolve(res);
-                } else if (res && res.requireRegistration) {
-                  // ไม่พบในฐานข้อมูล (ถูกลบหรือยังไม่ได้ลงทะเบียน) -> แจ้งเตือนแล้วเด้งไปหน้าลงทะเบียน
-                  clearAllAuthCache();
-                  Swal.fire({
-                    icon: 'warning',
-                    title: 'ยังไม่ได้ลงทะเบียน',
-                    html: 'ไม่พบข้อมูลสมาชิกในระบบ<br>กรุณาลงทะเบียนก่อนทำแบบประเมิน',
-                    confirmButtonText: '<i class="fas fa-user-plus"></i> ไปหน้าลงทะเบียน',
-                    confirmButtonColor: '#667eea',
-                    allowOutsideClick: false
-                  }).then(function() {
-                    redirectToRegistration();
-                  });
-                  resolve(res);
+                if (res.staff) {
+                  setCachedStaff(serverStaffId, res.staff);
+                  renderStaffUI(res.staff);
                 } else {
-                  clearAllAuthCache();
-                  resolve(res);
+                  onGetStaffFailure('ไม่พบข้อมูลเจ้าหน้าที่ประจำเคาน์เตอร์นี้');
                 }
-              })
-              .catch(function(err) {
-                console.error("Background auth check error:", err);
-                resolve({ success: false, message: err.message || err });
-              });
-          }).catch(function(err) {
-            console.error("Get LINE profile error:", err);
-            resolve({ success: false, message: err.message || err });
-          });
-        }
-      })
-      .catch(function(err) {
-        console.error("LIFF Init error:", err);
-        resolve({ success: false, message: err.message || err });
-      });
-  });
+              } else if (res && res.requireRegistration) {
+                // ยังไม่ได้ลงทะเบียน หรือเพิ่งถูกลบออกจากชีต -> เด้งไปหน้าลงทะเบียนทันที
+                clearAllAuthCache();
+                redirectToRegistration();
+              } else {
+                clearAllAuthCache();
+                onGetStaffFailure(res ? res.message : 'ตรวจสอบสิทธิ์ล้มเหลว');
+              }
+            })
+            .catch(function(err) {
+              onGetStaffFailure('เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว: ' + (err.message || err));
+            });
+        }).catch(function(err) {
+          onGetStaffFailure('ดึงข้อมูล LINE ไม่สำเร็จ: ' + (err.message || err));
+        });
+      }
+    })
+    .catch(function(err) {
+      onGetStaffFailure('LIFF Init Failed: ' + (err.message || err));
+    });
 }
 
 function renderStaffUI(staff) {
@@ -607,7 +572,7 @@ function resetEvaluationForm() {
   commentBox.style.height = '';
 }
 
-async function submitEvaluation() {
+function submitEvaluation() {
   if (sessionStartTime && (Date.now() - sessionStartTime >= SESSION_TIMEOUT_MS)) {
     handleSessionExpired();
     return;
@@ -627,31 +592,6 @@ async function submitEvaluation() {
   var btnSubmit = document.getElementById('btnSubmitForm');
   btnSubmit.classList.add('loading');
   btnSubmit.disabled = true;
-
-  // รอให้ Background Auth ตรวจสอบเสร็จสิ้น (กรณีผู้ใช้กดส่งเร็วมาก)
-  if (authCheckPromise) {
-    try {
-      await authCheckPromise;
-    } catch(e) {}
-  }
-
-  // ตรวจสอบผลการยืนยันตัวตน
-  if (authCheckResult && authCheckResult.requireRegistration) {
-    btnSubmit.classList.remove('loading');
-    btnSubmit.disabled = false;
-    clearAllAuthCache();
-    Swal.fire({
-      icon: 'warning',
-      title: 'ยังไม่ได้ลงทะเบียน',
-      html: 'ไม่พบข้อมูลสมาชิกในระบบ<br>กรุณาลงทะเบียนก่อนทำแบบประเมิน',
-      confirmButtonText: '<i class="fas fa-user-plus"></i> ไปหน้าลงทะเบียน',
-      confirmButtonColor: '#667eea',
-      allowOutsideClick: false
-    }).then(function() {
-      redirectToRegistration();
-    });
-    return;
-  }
 
   var payload = {
     staffName: document.getElementById('staffName').textContent,
