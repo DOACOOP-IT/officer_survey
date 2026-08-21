@@ -46,6 +46,14 @@ function setCachedAuth(lineUid, memberData) {
   } catch (e) {}
 }
 
+function clearAllAuthCache() {
+  try {
+    localStorage.removeItem(AUTH_CACHE_KEY);
+    localStorage.removeItem('officer_survey_member_no');
+    localStorage.removeItem('officer_survey_member_name');
+  } catch (e) {}
+}
+
 function getCachedStaff(staffId) {
   try {
     const raw = localStorage.getItem(STAFF_CACHE_PREFIX + staffId);
@@ -357,8 +365,10 @@ function initLiffAndCheckAuth() {
                   onGetStaffFailure('ไม่พบข้อมูลเจ้าหน้าที่ประจำเคาน์เตอร์นี้');
                 }
               } else if (res && res.requireRegistration) {
+                clearAllAuthCache();
                 redirectToRegistration();
               } else {
+                clearAllAuthCache();
                 onGetStaffFailure(res ? res.message : 'ตรวจสอบสิทธิ์ล้มเหลว');
               }
             })
@@ -394,6 +404,7 @@ function renderStaffUI(staff) {
 }
 
 function redirectToRegistration() {
+  clearAllAuthCache();
   window.location.replace(REGISTER_LIFF);
 }
 
