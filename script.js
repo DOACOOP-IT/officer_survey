@@ -8,7 +8,33 @@ const MY_LIFF_ID = '2011164567-UjK6uTMI';
 
 // --- Auth Cache Helper (เพื่อเพิ่มความเร็วในการ Login) ---
 const AUTH_CACHE_KEY = 'officer_survey_auth_cache_v1';
-const AUTH_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 วัน
+const AUTH_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
+
+// --- Staff Cache Helper (โหลด UI เจ้าหน้าที่ทันที 0ms) ---
+const STAFF_CACHE_PREFIX = 'officer_survey_staff_';
+const STAFF_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 ชม.
+
+function getCachedStaff(staffId) {
+  try {
+    const raw = localStorage.getItem(STAFF_CACHE_PREFIX + staffId);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if ((Date.now() - data.timestamp) < STAFF_CACHE_TTL) {
+      return data.staff;
+    }
+  } catch(e) {}
+  return null;
+}
+
+function setCachedStaff(staffId, staff) {
+  try {
+    localStorage.setItem(STAFF_CACHE_PREFIX + staffId, JSON.stringify({
+      staff: staff,
+      timestamp: Date.now()
+    }));
+  } catch(e) {}
+}
+ // 7 วัน
 
 function getCachedAuth(lineUid) {
   try {
@@ -197,6 +223,12 @@ var allStaffData = [];
   }
 
   function initLiffAndCheckAuth() {
+    // 1. Instant Staff Render (ถ้ามีแคชเจ้าหน้าที่ในเครื่อง ให้เปิดหน้าประเมินทันที 0ms)
+    var cachedStaff = getCachedStaff(serverStaffId);
+    if (cachedStaff) {
+      renderStaffUI(cachedStaff);
+    }
+
     liff.init({ liffId: MY_LIFF_ID })
       .then(function() {
         if (!liff.isLoggedIn()) {
@@ -205,44 +237,31 @@ var allStaffData = [];
           liff.getProfile().then(function(profile) {
             var lineUid = profile.userId;
             gateToken = lineUid;
-
             var savedMemNo = localStorage.getItem('officer_survey_member_no') || '';
 
-            // 1. ตรวจสอบจาก Local Cache ก่อนเพื่อความเร็วสูงสุด (Instant 0ms Load)
-            var cached = getCachedAuth(lineUid);
-            if (cached && cached.memberData && cached.memberData.memberNo) {
-              localStorage.setItem('officer_survey_member_no', cached.memberData.memberNo);
-              localStorage.setItem('officer_survey_member_name', cached.memberData.name || '');
-              loadStaffDataToEvaluate();
-
-              // ตรวจสอบเบื้องหลังแบบไม่บล็อกการโหลดหน้า
-              callGasApi('verifyLineUser', { lineUid: lineUid, memberNo: cached.memberData.memberNo })
-                .then(function(res) {
-                  if (res && res.success && res.memberData) {
-                    setCachedAuth(lineUid, res.memberData);
-                  }
-                }).catch(function(){});
-              return;
-            }
-
-            // 2. ถ้ายังไม่มีแคช ให้เรียก API ตรวจสอบสิทธิ์
-            callGasApi('verifyLineUser', { lineUid: lineUid, memberNo: savedMemNo })
+            // 2. เรียก Fast 1-Shot API: ตรวจสิทธิ์ + ดึงข้อมูลเจ้าหน้าที่ในรอบเดียว
+            callGasApi('getEvaluationInitData', { lineUid: lineUid, staffId: serverStaffId, memberNo: savedMemNo })
               .then(function(res) {
                 if (res && res.success) {
-                  // มีข้อมูลแล้ว -> จำค่าไว้แล้วเข้าหน้าประเมินเลยทันที
                   if (res.memberData && res.memberData.memberNo) {
                     localStorage.setItem('officer_survey_member_no', res.memberData.memberNo);
                     localStorage.setItem('officer_survey_member_name', res.memberData.name || '');
                     setCachedAuth(lineUid, res.memberData);
                   }
-                  loadStaffDataToEvaluate();
-                } else {
-                  // ยังไม่มีข้อมูลในระบบ -> เด้งไปหน้าลงทะเบียน
+                  if (res.staff) {
+                    setCachedStaff(serverStaffId, res.staff);
+                    renderStaffUI(res.staff);
+                  } else {
+                    onGetStaffFailure('ไม่พบข้อมูลเจ้าหน้าที่ประจำเคาน์เตอร์นี้');
+                  }
+                } else if (res && res.requireRegistration) {
                   redirectToRegistration();
+                } else {
+                  onGetStaffFailure(res ? res.message : 'ตรวจสอบสิทธิ์ล้มเหลว');
                 }
               })
               .catch(function(err) {
-                onGetStaffFailure('เชื่อมต่อฐานข้อมูลล้มเหลว: ' + (err.message || err));
+                onGetStaffFailure('เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว: ' + (err.message || err));
               });
           }).catch(function(err) {
             onGetStaffFailure('ดึงข้อมูล LINE ไม่สำเร็จ: ' + (err.message || err));
@@ -254,131 +273,26 @@ var allStaffData = [];
       });
   }
 
+  function renderStaffUI(staff) {
+    document.getElementById('loadingSpinner').style.display = 'none';
+    if (!staff) return;
+
+    document.getElementById('staffName').textContent = staff.name;
+    document.getElementById('staffDept').textContent = staff.department;
+    document.getElementById('staffCounter').textContent = staff.counter;
+    setStaffAvatar(staff.imageUrl, staff.showImage);
+
+    if (document.getElementById('displayScanTime')) {
+      document.getElementById('displayScanTime').innerText = scanTime;
+    }
+
+    resetEvaluationForm();
+    switchView('view-evaluation');
+    startSessionTimer();
+  }
+
   function redirectToRegistration() {
     window.location.replace(REGISTER_LIFF);
-  }
-
-  function loadStaffDataToEvaluate() {
-    var isDone = false;
-    setTimeout(function() { if(!isDone) onGetStaffFailure('Timeout: Backend taking too long.'); }, 15000);
-    
-    callGasApi('getStaffData', { staffId: serverStaffId, token: gateToken })
-      .then(function(res) { isDone = true; onGetStaffSuccess(res); })
-      .catch(function(err) { isDone = true; onGetStaffFailure(err); });
-  }
-
-  // URL รูปถ่ายที่โหลดสำเร็จแล้วของเจ้าหน้าที่คนปัจจุบัน ("" = ไม่มีรูปให้กดดู)
-  var currentAvatarUrl = '';
-
-  /**
-   * แสดงรูปถ่ายเจ้าหน้าที่ในกรอบ avatar ของหน้าประเมิน
-   * ถ้าไม่มีรูป หรือรูปโหลดไม่ขึ้น จะถอยกลับไปใช้ไอคอนเหมือนเดิม
-   */
-  function setStaffAvatar(imageUrl, showImage) {
-    var img = document.getElementById('staffAvatarImg');
-    var icon = document.getElementById('staffAvatarIcon');
-    var box = document.getElementById('staffAvatar');
-    if (!img || !icon || !box) return;
-
-    // เริ่มจากสถานะ "ไม่มีรูป" เสมอ กันรูปคนก่อนหน้าค้าง
-    currentAvatarUrl = '';
-    box.classList.remove('has-photo');
-    box.removeAttribute('title');
-
-    var url = (imageUrl || '').toString().trim();
-      var shouldShow = (showImage !== false && showImage !== 'FALSE');
-    if (!url || !shouldShow) {
-      img.removeAttribute('src');
-      img.style.display = 'none';
-      icon.style.display = '';
-      return;
-    }
-
-    // รูปจาก Google Drive อาจโหลดไม่ขึ้นถ้าสิทธิ์แชร์ยังไม่พร้อม จึงต้องมีทางถอย
-    img.onerror = function() {
-      currentAvatarUrl = '';
-      box.classList.remove('has-photo');
-      box.removeAttribute('title');
-      img.style.display = 'none';
-      icon.style.display = '';
-    };
-    img.onload = function() {
-      currentAvatarUrl = url;
-      box.classList.add('has-photo'); // เปิดให้กดดูรูปเต็มได้เฉพาะตอนโหลดสำเร็จ
-      box.title = 'กดเพื่อดูรูปเต็ม';
-      img.style.display = 'block';
-      icon.style.display = 'none';
-    };
-    img.style.display = 'none';
-    icon.style.display = '';
-    img.src = url; // ตั้งค่าผ่าน property ไม่ใช่ innerHTML จึงไม่ต้อง escape
-  }
-
-  /**
-   * เปิดกล่องดูรูปเต็ม (Lightbox)
-   */
-  function openAvatarLightbox() {
-    if (!currentAvatarUrl) return; // ไม่มีรูปก็ไม่ต้องเปิด
-
-    var box = document.getElementById('avatarLightbox');
-    var img = document.getElementById('lightboxImg');
-    var caption = document.getElementById('lightboxCaption');
-    if (!box || !img) return;
-
-    img.src = currentAvatarUrl;
-    img.alt = 'รูปถ่ายของ ' + document.getElementById('staffName').textContent;
-    if (caption) {
-      caption.textContent = document.getElementById('staffName').textContent +
-        ' • ' + document.getElementById('staffCounter').textContent;
-    }
-
-    box.classList.add('open');
-    document.body.style.overflow = 'hidden'; // ล็อกไม่ให้หน้าหลังเลื่อนตาม
-  }
-
-  /**
-   * ปิดกล่องดูรูปเต็ม
-   */
-  function closeAvatarLightbox() {
-    var box = document.getElementById('avatarLightbox');
-    if (!box) return;
-    box.classList.remove('open');
-    document.body.style.overflow = '';
-  }
-
-  // ผูกปุ่มและการกดต่างๆ ของ Lightbox
-  (function bindLightbox() {
-    var avatar = document.getElementById('staffAvatar');
-    var box = document.getElementById('avatarLightbox');
-    var closeBtn = document.getElementById('lightboxClose');
-    if (!avatar || !box) return;
-
-    avatar.addEventListener('click', openAvatarLightbox);
-
-    // กดที่พื้นหลังมืดเพื่อปิด (แต่กดที่ตัวรูปไม่ปิด)
-    box.addEventListener('click', function(e) {
-      if (e.target === box) closeAvatarLightbox();
-    });
-
-    if (closeBtn) closeBtn.addEventListener('click', closeAvatarLightbox);
-
-    // กด Esc เพื่อปิด
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape' && box.classList.contains('open')) closeAvatarLightbox();
-    });
-  })();
-
-  /**
-   * ระบบสลับ View SPA
-   */
-  function switchView(viewId) {
-    document.querySelectorAll('.view-section').forEach(function(view) {
-      view.classList.remove('active-view');
-    });
-    var target = document.getElementById(viewId);
-    if (target) {
-      target.classList.add('active-view');
-    }
   }
 
   /**
