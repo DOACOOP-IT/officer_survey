@@ -295,6 +295,112 @@ var allStaffData = [];
     window.location.replace(REGISTER_LIFF);
   }
 
+  // URL รูปถ่ายที่โหลดสำเร็จแล้วของเจ้าหน้าที่คนปัจจุบัน ("" = ไม่มีรูปให้กดดู)
+  var currentAvatarUrl = '';
+
+  /**
+   * แสดงรูปถ่ายเจ้าหน้าที่ในกรอบ avatar ของหน้าประเมิน
+   * ถ้าไม่มีรูป หรือรูปโหลดไม่ขึ้น จะถอยกลับไปใช้ไอคอนเหมือนเดิม
+   */
+  function setStaffAvatar(imageUrl, showImage) {
+    var img = document.getElementById('staffAvatarImg');
+    var icon = document.getElementById('staffAvatarIcon');
+    var box = document.getElementById('staffAvatar');
+    if (!img || !icon || !box) return;
+
+    // เริ่มจากสถานะ "ไม่มีรูป" เสมอ กันรูปคนก่อนหน้าค้าง
+    currentAvatarUrl = '';
+    box.classList.remove('has-photo');
+    box.removeAttribute('title');
+
+    var url = (imageUrl || '').toString().trim();
+    var shouldShow = (showImage !== false && showImage !== 'FALSE');
+    if (!url || !shouldShow) {
+      img.removeAttribute('src');
+      img.style.display = 'none';
+      icon.style.display = '';
+      return;
+    }
+
+    // รูปจาก Google Drive อาจโหลดไม่ขึ้นถ้าสิทธิ์แชร์ยังไม่พร้อม จึงต้องมีทางถอย
+    img.onerror = function() {
+      currentAvatarUrl = '';
+      box.classList.remove('has-photo');
+      box.removeAttribute('title');
+      img.style.display = 'none';
+      icon.style.display = '';
+    };
+    img.onload = function() {
+      currentAvatarUrl = url;
+      box.classList.add('has-photo'); // เปิดให้กดดูรูปเต็มได้เฉพาะตอนโหลดสำเร็จ
+      box.title = 'กดเพื่อดูรูปเต็ม';
+      img.style.display = 'block';
+      icon.style.display = 'none';
+    };
+    img.style.display = 'none';
+    icon.style.display = '';
+    img.src = url; // ตั้งค่าผ่าน property ไม่ใช่ innerHTML จึงไม่ต้อง escape
+  }
+
+  /**
+   * เปิดกล่องดูรูปเต็ม (Lightbox)
+   */
+  function openAvatarLightbox() {
+    if (!currentAvatarUrl) return; // ไม่มีรูปก็ไม่ต้องเปิด
+
+    var box = document.getElementById('avatarLightbox');
+    var img = document.getElementById('lightboxImg');
+    var caption = document.getElementById('lightboxCaption');
+    if (!box || !img) return;
+
+    img.src = currentAvatarUrl;
+    img.alt = 'รูปถ่ายของ ' + document.getElementById('staffName').textContent;
+    if (caption) {
+      caption.textContent = document.getElementById('staffName').textContent +
+        ' • ' + document.getElementById('staffCounter').textContent;
+    }
+
+    box.classList.add('open');
+    document.body.style.overflow = 'hidden'; // ล็อกไม่ให้หน้าหลังเลื่อนตาม
+  }
+
+  /**
+   * ปิดกล่องดูรูปเต็ม
+   */
+  function closeAvatarLightbox() {
+    var box = document.getElementById('avatarLightbox');
+    if (!box) return;
+    box.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  // ผูกปุ่มและการกดต่างๆ ของ Lightbox
+  (function bindLightbox() {
+    var avatar = document.getElementById('staffAvatar');
+    var box = document.getElementById('avatarLightbox');
+    var closeBtn = document.getElementById('lightboxClose');
+    if (!avatar || !box) return;
+
+    avatar.addEventListener('click', openAvatarLightbox);
+
+    // กดที่พื้นหลังมืดเพื่อปิด (แต่กดที่ตัวรูปไม่ปิด)
+    box.addEventListener('click', function(e) {
+      if (e.target === box) closeAvatarLightbox();
+    });
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closeAvatarLightbox);
+    }
+
+    // กด Esc เพื่อปิด
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && box.classList.contains('open')) {
+        closeAvatarLightbox();
+      }
+    });
+  })();
+
+
   /**
    * ระบบนาฬิกา Real-time แบบ พ.ศ. ของไทย
    */
