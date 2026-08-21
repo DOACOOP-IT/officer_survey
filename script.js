@@ -289,13 +289,7 @@ window.addEventListener('load', function() {
 });
 
 function startAppLogic() {
-  document.querySelectorAll('.view-section').forEach(function(el) {
-    el.classList.remove('active-view');
-  });
-
   if (serverIsAdmin === "true") {
-    document.getElementById('loadingSpinner').style.display = 'block';
-    document.getElementById('loadingSpinner').classList.add('active-view');
     var isDone = false;
     setTimeout(function() { if(!isDone) onGetAllStaffFailure('Timeout: Backend taking too long.'); }, 15000);
     
@@ -303,9 +297,6 @@ function startAppLogic() {
       .then(function(res) { isDone = true; onGetAllStaffSuccess(res); })
       .catch(function(err) { isDone = true; onGetAllStaffFailure(err); });
   } else if (serverStaffId) {
-    // แสดงตัวโหลดขณะตรวจเช็คความถูกต้องของสิทธิ์
-    document.getElementById('loadingSpinner').style.display = 'block';
-    document.getElementById('loadingSpinner').classList.add('active-view');
     initLiffAndCheckAuth();
   } else {
     switchView('view-error');

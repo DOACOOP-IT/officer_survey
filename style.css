@@ -1000,7 +1000,7 @@ textarea.form-control {
   -webkit-backdrop-filter: blur(16px);
   text-align: center;
   position: relative;
-  animation: cardFadeIn 0.3s ease-out;
+  /* animation removed to prevent flicker */
 }
 
 @keyframes cardFadeIn {
@@ -1094,3 +1094,5 @@ textarea.form-control {
 
   50% { transform: scale(1.04); opacity: 1; }
 }
+
+#loadingSpinner.active-view { display: block; animation: none !important; }
