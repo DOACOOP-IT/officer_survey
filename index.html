@@ -31,7 +31,7 @@
   </script>
 
   <!-- นำเข้ารูปแบบสไตล์หลักจาก styles.html -->
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=22">
 </head>
 
 <body>
@@ -43,30 +43,27 @@
   <div class="container">
 
     <!-- หน้าต่างสปินเนอร์ตอนกำลังโหลดข้อมูล -->
-    <div id="loadingSpinner" class="view-section active-view" style="text-align: center; padding: 40px 0;">
-      <i class="fas fa-spinner fa-spin" style="font-size: 40px; color: var(--primary-color); margin-bottom: 15px;"></i>
-      <p class="loading-text">กำลังโหลดระบบฐานข้อมูล...</p>
-    </div>
-
-
-
-    <!-- 1. วิวแรก: หน้าสำหรับผู้ดูแลระบบและจำลองการใช้งาน (Admin & Simulation View) -->
-    <div id="view-landing" class="view-section">
-      <div class="admin-card">
-        <div class="admin-navbar">
-          <div class="admin-title" style="color: var(--text-primary);">
-            <i class="fas fa-qrcode"></i>
-            ระบบจัดการประเมิน QR Code
-          </div>
-          <div class="admin-tabs">
-            <button class="tab-btn" onclick="switchAdminTab('sim')">
-              <i class="fas fa-mobile-alt"></i> จำลองประเมิน
-            </button>
-            <button class="tab-btn active" onclick="switchAdminTab('qr')">
-              <i class="fas fa-print"></i> บอร์ด QR Code
-            </button>
-          </div>
+        <!-- หน้าต่าง Skeleton โหลดข้อมูลความเร็วสูง (Fast Perceived Load) -->
+    <div id="loadingSpinner" class="view-section active-view">
+      <div class="top-loader-bar"></div>
+      <div class="fast-skeleton-container">
+        <div class="shimmer-wave skeleton-avatar"></div>
+        <div class="shimmer-wave skeleton-title"></div>
+        <div class="shimmer-wave skeleton-subtitle"></div>
+        
+        <div class="skeleton-divider"></div>
+        
+        <div class="skeleton-rating-row">
+          <div class="shimmer-wave skeleton-star"></div>
+          <div class="shimmer-wave skeleton-star"></div>
+          <div class="shimmer-wave skeleton-star"></div>
         </div>
+
+        <div class="fast-pulse-badge">
+          <i class="fas fa-bolt"></i> กำลังเปิดระบบประเมิน...
+        </div>
+      </div>
+    </div>
 
         <!-- แถบเครื่องมือจัดการการแสดงผล -->
         <div class="control-bar" style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
@@ -288,7 +285,7 @@
     })();
   </script>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script src="script.js?v=20"></script>
+  <script src="script.js?v=23"></script>
 </body>
 
 </html>
