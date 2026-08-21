@@ -220,26 +220,14 @@ function bindLightboxEvents() {
 async function callGasApi(action, payload, retryCount) {
   var maxRetries = 2;
   var attempt = retryCount || 0;
-  var isReadAction = (action === 'getEvaluationInitData' || action === 'getStaffData' || action === 'verifyLineUser');
 
   try {
-    var response;
-    if (isReadAction) {
-      // ใช้ Fast HTTP GET สำหรับการอ่านข้อมูล (เร็วขึ้น 60-70% ไม่มี Cold Start Overhead)
-      var params = new URLSearchParams({ action: action, ...payload });
-      response = await fetch(GAS_URL + '?' + params.toString(), {
-        method: 'GET',
-        redirect: 'follow'
-      });
-    } else {
-      // ใช้ HTTP POST สำหรับการบันทึกข้อมูล (Write)
-      response = await fetch(GAS_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: action, data: payload, ...payload }),
-        redirect: 'follow'
-      });
-    }
+    var response = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: action, data: payload, ...payload }),
+      redirect: 'follow'
+    });
 
     var text = await response.text();
     if (text.trim().startsWith('<')) {

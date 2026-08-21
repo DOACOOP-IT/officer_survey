@@ -39,11 +39,10 @@
   <!-- แผ่นการพิมพ์สำหรับจัดเรียงหน้า A4 QR Codes สำหรับ Admin สั่งพิมพ์โดยเฉพาะ -->
   <div id="printSheet" class="print-sheet"></div>
 
-  <!-- คอนเทนเนอร์หลัก (Main Container) -->
+    <!-- คอนเทนเนอร์หลัก (Main Container) -->
   <div class="container">
 
-    <!-- หน้าต่างสปินเนอร์ตอนกำลังโหลดข้อมูล -->
-        <!-- หน้าต่าง Skeleton โหลดข้อมูลความเร็วสูง (Fast Perceived Load) -->
+    <!-- หน้าต่าง Skeleton โหลดข้อมูลความเร็วสูง (Fast Perceived Load) -->
     <div id="loadingSpinner" class="view-section active-view">
       <div class="top-loader-bar"></div>
       <div class="fast-skeleton-container">
@@ -64,6 +63,24 @@
         </div>
       </div>
     </div>
+
+    <!-- 1. วิวแรก: หน้าสำหรับผู้ดูแลระบบและจำลองการใช้งาน (Admin & Simulation View) -->
+    <div id="view-landing" class="view-section">
+      <div class="admin-card">
+        <div class="admin-navbar">
+          <div class="admin-title" style="color: var(--text-primary);">
+            <i class="fas fa-qrcode"></i>
+            ระบบจัดการประเมิน QR Code
+          </div>
+          <div class="admin-tabs">
+            <button class="tab-btn" onclick="switchAdminTab('sim')">
+              <i class="fas fa-mobile-alt"></i> จำลองประเมิน
+            </button>
+            <button class="tab-btn active" onclick="switchAdminTab('qr')">
+              <i class="fas fa-print"></i> บอร์ด QR Code
+            </button>
+          </div>
+        </div>
 
         <!-- แถบเครื่องมือจัดการการแสดงผล -->
         <div class="control-bar" style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
@@ -285,7 +302,7 @@
     })();
   </script>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script src="script.js?v=23"></script>
+  <script src="script.js?v=25"></script>
 </body>
 
 </html>
