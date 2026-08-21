@@ -18,41 +18,9 @@ let serverIsAdmin = "false";
 let scanTime = "";
 let currentAvatarUrl = "";
 
-// --- Caching Helpers (Instant Load) ---
-const AUTH_CACHE_KEY = 'officer_survey_auth_cache_v1';
-const AUTH_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 วัน
+// --- Staff Cache Helper (โหลด UI เจ้าหน้าที่ทันที 0ms) ---
 const STAFF_CACHE_PREFIX = 'officer_survey_staff_';
 const STAFF_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 ชม.
-
-function getCachedAuth(lineUid) {
-  try {
-    const raw = localStorage.getItem(AUTH_CACHE_KEY);
-    if (!raw) return null;
-    const data = JSON.parse(raw);
-    if (data.lineUid === lineUid && (Date.now() - data.timestamp) < AUTH_CACHE_TTL) {
-      return data;
-    }
-  } catch (e) {}
-  return null;
-}
-
-function setCachedAuth(lineUid, memberData) {
-  try {
-    localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify({
-      lineUid: lineUid,
-      memberData: memberData,
-      timestamp: Date.now()
-    }));
-  } catch (e) {}
-}
-
-function clearAllAuthCache() {
-  try {
-    localStorage.removeItem(AUTH_CACHE_KEY);
-    localStorage.removeItem('officer_survey_member_no');
-    localStorage.removeItem('officer_survey_member_name');
-  } catch (e) {}
-}
 
 function getCachedStaff(staffId) {
   try {
@@ -73,6 +41,14 @@ function setCachedStaff(staffId, staff) {
       timestamp: Date.now()
     }));
   } catch(e) {}
+}
+
+function clearAllAuthCache() {
+  try {
+    localStorage.removeItem('officer_survey_auth_cache_v1');
+    localStorage.removeItem('officer_survey_member_no');
+    localStorage.removeItem('officer_survey_member_name');
+  } catch (e) {}
 }
 
 // --- Session Management (10 นาที) ---
@@ -333,10 +309,10 @@ function startAppLogic() {
 }
 
 function initLiffAndCheckAuth() {
-  // 1. Instant Staff Render (ถ้ามีแคชในเครื่อง ให้เปิดหน้าประเมินทันที 0ms)
+  // Pre-render staff data if cached to avoid UI flicker
   var cachedStaff = getCachedStaff(serverStaffId);
   if (cachedStaff) {
-    renderStaffUI(cachedStaff);
+    renderStaffUI(cachedStaff, false); // false = don't activate form until auth verified
   }
 
   liff.init({ liffId: MY_LIFF_ID })
@@ -347,24 +323,23 @@ function initLiffAndCheckAuth() {
         liff.getProfile().then(function(profile) {
           var lineUid = profile.userId;
           gateToken = lineUid;
-          var savedMemNo = localStorage.getItem('officer_survey_member_no') || '';
 
-          // 2. เรียก Fast 1-Shot API: ตรวจสิทธิ์ + ดึงข้อมูลเจ้าหน้าที่ในรอบเดียว
-          callGasApi('getEvaluationInitData', { lineUid: lineUid, staffId: serverStaffId, memberNo: savedMemNo })
+          // ตรวจสอบฐานข้อมูลจริง Real-time เสมอ (ไม่มีการจำแคชค้างเมื่อถูกลบ)
+          callGasApi('getEvaluationInitData', { lineUid: lineUid, staffId: serverStaffId })
             .then(function(res) {
-              if (res && res.success) {
-                if (res.memberData && res.memberData.memberNo) {
-                  localStorage.setItem('officer_survey_member_no', res.memberData.memberNo);
-                  localStorage.setItem('officer_survey_member_name', res.memberData.name || '');
-                  setCachedAuth(lineUid, res.memberData);
-                }
+              if (res && res.success && res.memberData) {
+                // บันทึกเลขสมาชิกปัจจุบัน
+                localStorage.setItem('officer_survey_member_no', res.memberData.memberNo || '');
+                localStorage.setItem('officer_survey_member_name', res.memberData.name || '');
+
                 if (res.staff) {
                   setCachedStaff(serverStaffId, res.staff);
-                  renderStaffUI(res.staff);
+                  renderStaffUI(res.staff, true);
                 } else {
                   onGetStaffFailure('ไม่พบข้อมูลเจ้าหน้าที่ประจำเคาน์เตอร์นี้');
                 }
               } else if (res && res.requireRegistration) {
+                // ไม่พบในฐานข้อมูล (ถูกลบหรือยังไม่เคยลงทะเบียน) -> ล้างแคชแล้วเด้งไปหน้าลงทะเบียนทันที
                 clearAllAuthCache();
                 redirectToRegistration();
               } else {
@@ -385,8 +360,7 @@ function initLiffAndCheckAuth() {
     });
 }
 
-function renderStaffUI(staff) {
-  document.getElementById('loadingSpinner').style.display = 'none';
+function renderStaffUI(staff, activateForm) {
   if (!staff) return;
 
   document.getElementById('staffName').textContent = staff.name;
@@ -398,9 +372,12 @@ function renderStaffUI(staff) {
     document.getElementById('displayScanTime').innerText = scanTime;
   }
 
-  resetEvaluationForm();
-  switchView('view-evaluation');
-  startSessionTimer();
+  if (activateForm !== false) {
+    document.getElementById('loadingSpinner').style.display = 'none';
+    resetEvaluationForm();
+    switchView('view-evaluation');
+    startSessionTimer();
+  }
 }
 
 function redirectToRegistration() {
@@ -600,13 +577,11 @@ function resetEvaluationForm() {
 }
 
 function submitEvaluation() {
-  // 0. ตรวจสอบอายุเซสชัน 10 นาที
   if (sessionStartTime && (Date.now() - sessionStartTime >= SESSION_TIMEOUT_MS)) {
     handleSessionExpired();
     return;
   }
 
-  // 1. ตรวจสอบการเลือกคะแนนความพึงพอใจ
   var ratingInput = document.querySelector('input[name="rating"]:checked');
   if (!ratingInput) {
     Swal.fire({
