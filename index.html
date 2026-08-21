@@ -119,12 +119,7 @@
 
     <!-- 2. วิวที่สอง: หน้าประเมินผลความพึงพอใจเจ้าหน้าที่ (Evaluation View) -->
     <div id="view-evaluation" class="view-section">
-      <!-- ย้ายเวลาสแกนออกมาอยู่นอกกล่อง Card -->
-      <div class="time-container-outer">
-        <div class="time-display">
-          <i class="far fa-clock"></i> เวลาสแกน: <strong id="displayScanTime">-</strong>
-        </div>
-      </div>
+      
 
       <div class="card">
         <div class="card-header" style="text-align: center; margin-bottom: 1rem;">
@@ -189,6 +184,13 @@
           <span class="spinner"></span>
           <span class="btn-text"><i class="fas fa-paper-plane"></i> ส่งแบบประเมิน</span>
         </button>
+
+        <!-- กล่องแสดงเวลาสแกน (อยู่ใต้ปุ่มส่งแบบประเมิน) -->
+        <div class="time-container-outer" style="margin-top: 1.25rem; margin-bottom: 0;">
+          <div class="time-display">
+            <i class="far fa-clock"></i> เวลาสแกน: <strong id="displayScanTime">-</strong>
+          </div>
+        </div>
       </div>
 
 
@@ -244,6 +246,17 @@
     (function() {
       // Extract parameters from URL when hosted statically
       const urlParams = new URLSearchParams(window.location.search);
+      const isDashboard = urlParams.get('page') === 'dashboard' || urlParams.get('dashboard') === 'true';
+      const liffStateCheck = urlParams.get('liff.state');
+      let isLiffDashboard = false;
+      if (liffStateCheck) {
+        const lp = new URLSearchParams(liffStateCheck.startsWith('?') ? liffStateCheck : '?' + liffStateCheck);
+        isLiffDashboard = lp.get('page') === 'dashboard' || lp.get('dashboard') === 'true';
+      }
+      if (isDashboard || isLiffDashboard) {
+        window.location.replace('dashboard.html' + window.location.search);
+        return;
+      }
       let localStaffId = urlParams.get('id') || urlParams.get('counter') || urlParams.get('staffId') || '';
       let localIsAdmin = urlParams.get('page') === 'admin' || urlParams.get('admin') === 'true';
       let localGateToken = urlParams.get('t') || '';
@@ -279,6 +292,7 @@
 </body>
 
 </html>
+
 
 
 

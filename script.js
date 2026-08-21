@@ -6,6 +6,73 @@ const SURVEY_LIFF_URL = 'https://liff.line.me/2011164567-UjK6uTMI';
 const REGISTER_LIFF = 'https://liff.line.me/2011164567-xmPJaYwb';
 const MY_LIFF_ID = '2011164567-UjK6uTMI';
 
+// --- Auth Cache Helper (เพื่อเพิ่มความเร็วในการ Login) ---
+const AUTH_CACHE_KEY = 'officer_survey_auth_cache_v1';
+const AUTH_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 วัน
+
+function getCachedAuth(lineUid) {
+  try {
+    const raw = localStorage.getItem(AUTH_CACHE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (data.lineUid === lineUid && (Date.now() - data.timestamp) < AUTH_CACHE_TTL) {
+      return data;
+    }
+  } catch (e) {}
+  return null;
+}
+
+function setCachedAuth(lineUid, memberData) {
+  try {
+    localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify({
+      lineUid: lineUid,
+      memberData: memberData,
+      timestamp: Date.now()
+    }));
+  } catch (e) {}
+}
+
+// --- Session Management (10 นาที) ---
+const SESSION_TIMEOUT_MS = 10 * 60 * 1000; // 10 นาที (600,000 ms)
+let sessionStartTime = null;
+let sessionTimerInterval = null;
+
+function startSessionTimer() {
+  sessionStartTime = Date.now();
+  if (sessionTimerInterval) clearInterval(sessionTimerInterval);
+  sessionTimerInterval = setInterval(checkSessionExpiry, 5000);
+}
+
+function checkSessionExpiry() {
+  if (!sessionStartTime) return;
+  if (Date.now() - sessionStartTime >= SESSION_TIMEOUT_MS) {
+    if (sessionTimerInterval) clearInterval(sessionTimerInterval);
+    sessionStartTime = null;
+    handleSessionExpired();
+  }
+}
+
+function handleSessionExpired() {
+  Swal.fire({
+    icon: 'warning',
+    title: 'หมดเวลาทำรายการ',
+    html: 'เซสชันการประเมินหมดอายุ (เกิน 10 นาที)<br>กรุณาสแกน QR Code ใหม่อีกครั้ง',
+    confirmButtonText: '<i class="fas fa-redo"></i> สแกนใหม่',
+    confirmButtonColor: '#667eea',
+    allowOutsideClick: false
+  }).then(function() {
+    serverStaffId = "";
+    resetEvaluationForm();
+    switchView('view-error');
+    if (window.history && window.history.replaceState) {
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+  });
+}
+
+
+
 /**
  * เรียก GAS API พร้อมรองรับ redirect ที่อาจทำงานผิดพลาดบน LINE WebView
  * - อ่าน response เป็น text ก่อนแล้วค่อย parse JSON
@@ -141,14 +208,32 @@ var allStaffData = [];
 
             var savedMemNo = localStorage.getItem('officer_survey_member_no') || '';
 
-            // ตรวจสอบสิทธิ์เบื้องหลังทันที
+            // 1. ตรวจสอบจาก Local Cache ก่อนเพื่อความเร็วสูงสุด (Instant 0ms Load)
+            var cached = getCachedAuth(lineUid);
+            if (cached && cached.memberData && cached.memberData.memberNo) {
+              localStorage.setItem('officer_survey_member_no', cached.memberData.memberNo);
+              localStorage.setItem('officer_survey_member_name', cached.memberData.name || '');
+              loadStaffDataToEvaluate();
+
+              // ตรวจสอบเบื้องหลังแบบไม่บล็อกการโหลดหน้า
+              callGasApi('verifyLineUser', { lineUid: lineUid, memberNo: cached.memberData.memberNo })
+                .then(function(res) {
+                  if (res && res.success && res.memberData) {
+                    setCachedAuth(lineUid, res.memberData);
+                  }
+                }).catch(function(){});
+              return;
+            }
+
+            // 2. ถ้ายังไม่มีแคช ให้เรียก API ตรวจสอบสิทธิ์
             callGasApi('verifyLineUser', { lineUid: lineUid, memberNo: savedMemNo })
               .then(function(res) {
                 if (res && res.success) {
-                  // มีข้อมูลแล้ว -> จำค่าไว้แล้วเข้าหน้าประเมินเลยทันที ไม่ต้องแวะหน้าลงทะเบียน
+                  // มีข้อมูลแล้ว -> จำค่าไว้แล้วเข้าหน้าประเมินเลยทันที
                   if (res.memberData && res.memberData.memberNo) {
                     localStorage.setItem('officer_survey_member_no', res.memberData.memberNo);
                     localStorage.setItem('officer_survey_member_name', res.memberData.name || '');
+                    setCachedAuth(lineUid, res.memberData);
                   }
                   loadStaffDataToEvaluate();
                 } else {
@@ -347,6 +432,7 @@ var allStaffData = [];
       resetEvaluationForm();
       
       switchView('view-evaluation');
+      startSessionTimer();
     } else {
       Swal.fire({
         icon: 'error',
@@ -590,6 +676,12 @@ var allStaffData = [];
    * ยื่นข้อมูลส่งผลการประเมิน
    */
   function submitEvaluation() {
+    // 0. ตรวจสอบอายุเซสชัน 10 นาที
+    if (sessionStartTime && (Date.now() - sessionStartTime >= SESSION_TIMEOUT_MS)) {
+      handleSessionExpired();
+      return;
+    }
+
     // 1. ตรวจสอบการเลือกคะแนนความพึงพอใจ
     var ratingInput = document.querySelector('input[name="rating"]:checked');
     if (!ratingInput) {
@@ -637,20 +729,24 @@ var allStaffData = [];
     btnSubmit.disabled = false;
 
     if (result.success || result.status === 'success') {
-      // แสดงข้อความสวยงาม
+      if (sessionTimerInterval) clearInterval(sessionTimerInterval);
+      sessionStartTime = null;
+
+      // แสดงกล่องสำเร็จ แล้วเมื่อกดปุ่ม ตกลง ให้ปิดหน้า LIFF ทันที
       Swal.fire({
         icon: 'success',
         title: 'ส่งแบบประเมินสำเร็จ!',
         html: 'ขอบคุณสำหรับความคิดเห็น<br>ทางเราจะนำไปพัฒนาการบริการให้ดียิ่งขึ้น',
-        width: '600px', // เพิ่มความกว้างเป็น 600px เพื่อไม่ให้ข้อความตกบรรทัด
-        timer: 5000, // ปิดอัตโนมัติใน 5 วินาที
-        timerProgressBar: true, // แสดงหลอดเวลา
-        confirmButtonText: '<i class="fas fa-check"></i> ตกลง', // เปลี่ยนข้อความปุ่ม
-        confirmButtonColor: 'var(--success-color)'
-      }).then(function() {
-        // รีเซ็ตฟอร์มแล้วอยู่หน้าเดิม ไม่ต้องกลับหน้าแรก
-        resetEvaluationForm();
-        window.scrollTo(0, 0); // เลื่อนจอขึ้นบนสุด
+        confirmButtonText: '<i class="fas fa-check"></i> ตกลง',
+        confirmButtonColor: '#22c55e',
+        allowOutsideClick: false
+      }).then(function(res) {
+        if (typeof liff !== 'undefined' && liff.isInClient()) {
+          liff.closeWindow();
+        } else {
+          resetEvaluationForm();
+          switchView('view-error');
+        }
       });
     } else {
       Swal.fire({
@@ -662,9 +758,6 @@ var allStaffData = [];
     }
   }
 
-  /**
-   * จัดการเมื่อเกิดข้อผิดพลาดในการส่ง
-   */
   function onSubmitFailure(errorMsg) {
     var btnSubmit = document.getElementById('btnSubmitForm');
     btnSubmit.classList.remove('loading');
