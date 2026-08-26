@@ -2842,50 +2842,60 @@
         };
 
         document.getElementById('pdfPreviewPlaceholder').style.display = 'block';
-        document.getElementById('pdfPreviewPlaceholder').innerHTML = '<i class="fas fa-circle-notch fa-spin" style="font-size: 3rem; color: #f1f5f9; margin-bottom: 15px;"></i><p style="font-size: 1.1rem; color: #f1f5f9;">กำลังประมวลผลตัวอย่างเอกสาร...</p>';
+        document.getElementById('pdfPreviewPlaceholder').innerHTML = '<i class="fas fa-circle-notch fa-spin" style="font-size: 3rem; color: #f1f5f9; margin-bottom: 15px;"></i><p style="font-size: 1.1rem; color: #f1f5f9;">กำลังดึงและประมวลผลตัวอย่างเอกสาร...</p>';
         document.getElementById('pdfPreviewContent').style.display = 'none';
         document.getElementById('btnDownloadPdfTab').style.display = 'none';
 
-        setTimeout(() => {
-          // Generate the original styled HTML string using the existing function
-          let htmlContent = generateReportHtml();
-          
-          if (!htmlContent) {
-             document.getElementById('pdfPreviewPlaceholder').innerHTML = 'ไม่มีข้อมูล';
-             return;
+        // ดึงข้อมูลตามช่วงวันที่ที่เลือก (ถ้าไม่ตรงกับข้อมูลเดิม)
+        const fetchPromise = (selectedDate !== currentDateFilter)
+          ? callGasApiDashboard('getDashboardData', { sessionToken: sessionToken, dateFilter: selectedDate })
+          : Promise.resolve(window.lastDashboardData);
+
+        fetchPromise.then(function(res) {
+          if (res && res.success) {
+            window.lastDashboardData = res;
           }
-          
-          window.currentPdfHtmlContent = htmlContent;
-          
-          const opt = {
-            margin: 10,
-            filename: 'report.pdf',
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 1.5, useCORS: true, logging: false },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-          };
-          
-          // Use html2pdf to generate an Image of the PDF for preview
-          html2pdf().set(opt).from(htmlContent).toImg().get('img').then(function (img) {
-            img.style.width = '100%';
-            img.style.height = 'auto';
-            img.style.display = 'block';
-            
-            const previewContent = document.getElementById('pdfPreviewContent');
-            previewContent.innerHTML = '';
-            previewContent.appendChild(img);
-            
-            document.getElementById('pdfPreviewPlaceholder').style.display = 'none';
-            previewContent.style.display = 'block';
-            
-            document.getElementById('btnDownloadPdfTab').style.display = 'inline-block';
-          }).catch(function(err) {
-            document.getElementById('pdfPreviewPlaceholder').innerHTML = '<i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 10px;"></i><p>เกิดข้อผิดพลาดในการสร้างตัวอย่าง</p>';
-            console.error(err);
-          });
-        }, 100);
+          renderPdfPreviewHtml();
+        }).catch(function(err) {
+          renderPdfPreviewHtml();
+        });
       }
-      
+
+      function renderPdfPreviewHtml() {
+        let htmlContent = generateReportHtml();
+        if (!htmlContent) {
+          document.getElementById('pdfPreviewPlaceholder').innerHTML = '<i class="fas fa-info-circle" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 10px;"></i><p>ไม่มีข้อมูลสำหรับการออกรายงาน</p>';
+          return;
+        }
+
+        window.currentPdfHtmlContent = htmlContent;
+
+        const opt = {
+          margin: 10,
+          filename: 'report.pdf',
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 1.5, useCORS: true, logging: false },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(htmlContent).toImg().get('img').then(function (img) {
+          img.style.width = '100%';
+          img.style.height = 'auto';
+          img.style.display = 'block';
+
+          const previewContent = document.getElementById('pdfPreviewContent');
+          previewContent.innerHTML = '';
+          previewContent.appendChild(img);
+
+          document.getElementById('pdfPreviewPlaceholder').style.display = 'none';
+          previewContent.style.display = 'block';
+          document.getElementById('btnDownloadPdfTab').style.display = 'inline-block';
+        }).catch(function(err) {
+          document.getElementById('pdfPreviewPlaceholder').innerHTML = '<i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 10px;"></i><p>เกิดข้อผิดพลาดในการสร้างตัวอย่าง</p>';
+          console.error(err);
+        });
+      }
+
       function downloadPreviewPdf() {
         if (window.currentPdfHtmlContent) {
           const btn = document.getElementById('btnDownloadPdfTab');
@@ -3082,7 +3092,7 @@ function generateReportHtml() {
           hasAnyData = true;
         }
 
-        if (showTrend && data.trendData && data.trendData.labels && data.trendData.labels.length > 0) {
+        if (showTrend) {
           // Section 3: แนวโน้มความพึงพอใจรายวัน
           html += `
             <div style="margin-bottom: 12mm; page-break-before: always;">
@@ -3122,7 +3132,7 @@ function generateReportHtml() {
           hasAnyData = true;
         }
 
-        if (showComment && allComments.length > 0) {
+        if (showComment) {
           // Section 4: ข้อเสนอแนะเพิ่มเติม - แบ่งหน้าละ 10 รายการ
           const COMMENT_PER_PAGE = 10;
           const commentChunks = [];
