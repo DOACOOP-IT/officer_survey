@@ -552,7 +552,7 @@
       flex-direction: column;
       align-items: center;
       gap: 0.5rem;
-      width: 30%;
+      flex: 1; min-width: 0;
     }
 
     .stars label .emoji-icon {
@@ -2035,7 +2035,7 @@
 
         <!-- กล่องความคิดเห็นทั้งหมด -->
         <div class="dashboard-card" style="margin-top: 1.5rem; display: flex; flex-direction: column;">
-          <div class="skeleton skeleton-title" style="width: 30%;"></div>
+          <div class="skeleton skeleton-title" style="flex: 1; min-width: 0;"></div>
           <div class="skeleton skeleton-text" style="width: 50%; margin-bottom: 20px;"></div>
           <div class="comments-grid" style="flex-grow: 1;">
             <div class="skeleton skeleton-card" style="border-radius: 8px;"></div>
@@ -3143,56 +3143,87 @@ function generateReportHtml() {
         }
 
         if (showComment) {
-          // Section 4: ข้อเสนอแนะเพิ่มเติม - แบ่งหน้าละ 10 รายการ
-          const COMMENT_PER_PAGE = 10;
-          const commentChunks = [];
-          for (let i = 0; i < allComments.length; i += COMMENT_PER_PAGE) {
-            commentChunks.push(allComments.slice(i, i + COMMENT_PER_PAGE));
-          }
+          const isSingleSection = filters.contentFilter === 'comment_only';
+          const pageBreakStyle = (!isSingleSection) ? 'page-break-before: always;' : 'margin-top: 5mm;';
 
-          commentChunks.forEach((chunk, ci) => {
-            html += `<div style="page-break-before: always; height: 1px; clear: both;"></div>`;
-            html += `<div style="margin-bottom: 5mm; padding-top: 2px;">`;
-            if (ci === 0) {
-              html += `<h2 style="font-size: 14pt; margin-bottom: 3mm; font-weight: bold;">${secNum}. ข้อเสนอแนะเพิ่มเติม</h2>`;
+          if (allComments.length > 0) {
+            const COMMENT_PER_PAGE = 10;
+            const commentChunks = [];
+            for (let i = 0; i < allComments.length; i += COMMENT_PER_PAGE) {
+              commentChunks.push(allComments.slice(i, i + COMMENT_PER_PAGE));
             }
-            
-            html += `
-              <table style="width: 100%; border-collapse: collapse; font-size: 11pt;">
-                <thead>
-                  <tr>
-                    <th style="padding: 3mm; border: 1px solid #000; text-align: center; width: 10%;">ลำดับ</th>
-                    <th style="padding: 3mm; border: 1px solid #000; text-align: left; width: 45%;">ข้อเสนอแนะ</th>
-                    <th style="padding: 3mm; border: 1px solid #000; text-align: center; width: 25%;">เจ้าหน้าที่</th>
-                    <th style="padding: 3mm; border: 1px solid #000; text-align: center; width: 20%;">ผู้ประเมิน</th>
-                  </tr>
-                </thead>
-                <tbody>
-            `;
 
-            chunk.forEach((c, cIdx) => {
-              const absIdx = ci * COMMENT_PER_PAGE + cIdx;
-              let ratingLabel = '';
-              if (c.rating === 3) ratingLabel = '[ดีเยี่ยม]';
-              else if (c.rating === 2) ratingLabel = '[ดี]';
-              else if (c.rating === 1) ratingLabel = '[ควรปรับปรุง]';
+            commentChunks.forEach((chunk, ci) => {
+              if (ci > 0 || !isSingleSection) {
+                html += `<div style="page-break-before: always; height: 1px; clear: both;"></div>`;
+              }
+              html += `<div style="margin-bottom: 5mm; padding-top: 2px;">`;
+              if (ci === 0) {
+                html += `<h2 style="font-size: 14pt; margin-bottom: 3mm; font-weight: bold;">${secNum}. ข้อเสนอแนะเพิ่มเติม</h2>`;
+              }
+              
+              html += `
+                <table style="width: 100%; border-collapse: collapse; font-size: 11pt;">
+                  <thead>
+                    <tr>
+                      <th style="padding: 3mm; border: 1px solid #000; text-align: center; width: 10%;">ลำดับ</th>
+                      <th style="padding: 3mm; border: 1px solid #000; text-align: left; width: 45%;">ข้อเสนอแนะ</th>
+                      <th style="padding: 3mm; border: 1px solid #000; text-align: center; width: 25%;">เจ้าหน้าที่</th>
+                      <th style="padding: 3mm; border: 1px solid #000; text-align: center; width: 20%;">ผู้ประเมิน</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+              `;
+
+              chunk.forEach((c, cIdx) => {
+                const absIdx = ci * COMMENT_PER_PAGE + cIdx;
+                let ratingLabel = '';
+                if (c.rating === 3) ratingLabel = '[ดีเยี่ยม]';
+                else if (c.rating === 2) ratingLabel = '[ดี]';
+                else if (c.rating === 1) ratingLabel = '[ควรปรับปรุง]';
+
+                html += `
+                  <tr>
+                    <td style="padding: 3mm; border: 1px solid #000; text-align: center;">${absIdx + 1}</td>
+                    <td style="padding: 3mm; border: 1px solid #000; text-align: left;">${ratingLabel} ${escapeHtml(c.text)}</td>
+                    <td style="padding: 3mm; border: 1px solid #000; text-align: center;">${escapeHtml(c.staffName)}</td>
+                    <td style="padding: 3mm; border: 1px solid #000; text-align: center;">${escapeHtml(c.evaluator)}</td>
+                  </tr>
+                `;
+              });
 
               html += `
-                <tr>
-                  <td style="padding: 3mm; border: 1px solid #000; text-align: center;">${absIdx + 1}</td>
-                  <td style="padding: 3mm; border: 1px solid #000; text-align: left;">${ratingLabel} ${escapeHtml(c.text)}</td>
-                  <td style="padding: 3mm; border: 1px solid #000; text-align: center;">${escapeHtml(c.staffName)}</td>
-                  <td style="padding: 3mm; border: 1px solid #000; text-align: center;">${escapeHtml(c.evaluator)}</td>
-                </tr>
+                  </tbody>
+                </table>
+              </div>
               `;
             });
-
+          } else {
+            // กรณีไม่มีข้อเสนอแนะ ให้แสดงตารางพร้อมข้อความแจ้งชัดเจน
             html += `
-                </tbody>
-              </table>
-            </div>
+              <div style="${pageBreakStyle} margin-bottom: 12mm;">
+                <h2 style="font-size: 14pt; margin-bottom: 3mm; font-weight: bold;">${secNum}. ข้อเสนอแนะเพิ่มเติม</h2>
+                <table style="width: 100%; border-collapse: collapse; font-size: 11pt;">
+                  <thead>
+                    <tr>
+                      <th style="padding: 3mm; border: 1px solid #000; text-align: center; width: 10%;">ลำดับ</th>
+                      <th style="padding: 3mm; border: 1px solid #000; text-align: left; width: 45%;">ข้อเสนอแนะ</th>
+                      <th style="padding: 3mm; border: 1px solid #000; text-align: center; width: 25%;">เจ้าหน้าที่</th>
+                      <th style="padding: 3mm; border: 1px solid #000; text-align: center; width: 20%;">ผู้ประเมิน</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td colspan="4" style="padding: 8mm 3mm; border: 1px solid #000; text-align: center; color: #64748b; font-size: 12pt;">
+                        <i class="far fa-comment-dots" style="font-size: 1.5rem; display: block; margin-bottom: 6px; color: #94a3b8;"></i>
+                        ไม่มีข้อเสนอแนะเพิ่มเติมในช่วงเวลานี้
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             `;
-          });
+          }
           hasAnyData = true;
         }
 
@@ -3530,19 +3561,19 @@ function generateReportHtml() {
           html: `
             ${avatarHtml}
             <div style="display: flex; justify-content: space-around; background: linear-gradient(145deg, #ffffff, #f1f5f9); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-              <div style="text-align: center; width: 30%;">
+              <div style="text-align: center; flex: 1; min-width: 0;">
                 <div style="font-size: 1.8rem; font-weight: bold; color: #388E3C;">${data.excellent}</div>
-                <div style="font-size: 0.85rem; color: #64748b; font-weight: 500;">😄 ดีมาก</div>
+                <div style="font-size: 0.85rem; color: #64748b; font-weight: 500; white-space: nowrap;">😄 ดีมาก</div>
               </div>
               <div style="border-right: 1px solid #cbd5e1;"></div>
-              <div style="text-align: center; width: 30%;">
+              <div style="text-align: center; flex: 1; min-width: 0;">
                 <div style="font-size: 1.8rem; font-weight: bold; color: #F57C00;">${data.good}</div>
-                <div style="font-size: 0.85rem; color: #64748b; font-weight: 500;">😐 ปานกลาง</div>
+                <div style="font-size: 0.85rem; color: #64748b; font-weight: 500; white-space: nowrap;">😐 ปานกลาง</div>
               </div>
               <div style="border-right: 1px solid #cbd5e1;"></div>
-              <div style="text-align: center; width: 30%;">
+              <div style="text-align: center; flex: 1; min-width: 0;">
                 <div style="font-size: 1.8rem; font-weight: bold; color: #D32F2F;">${data.poor}</div>
-                <div style="font-size: 0.85rem; color: #64748b; font-weight: 500;">😞 ปรับปรุง</div>
+                <div style="font-size: 0.85rem; color: #64748b; font-weight: 500; white-space: nowrap;">😞 ปรับปรุง</div>
               </div>
             </div>
             ${commentsHtml}
