@@ -2870,30 +2870,16 @@
 
         window.currentPdfHtmlContent = htmlContent;
 
-        const opt = {
-          margin: 10,
-          filename: 'report.pdf',
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 1.5, useCORS: true, logging: false },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
+        const previewContent = document.getElementById('pdfPreviewContent');
+        previewContent.innerHTML = htmlContent;
+        previewContent.style.display = 'block';
+        previewContent.style.background = '#ffffff';
+        previewContent.style.padding = '0';
+        previewContent.style.boxShadow = '0 10px 25px rgba(0,0,0,0.2)';
+        previewContent.style.borderRadius = '4px';
 
-        html2pdf().set(opt).from(htmlContent).toImg().get('img').then(function (img) {
-          img.style.width = '100%';
-          img.style.height = 'auto';
-          img.style.display = 'block';
-
-          const previewContent = document.getElementById('pdfPreviewContent');
-          previewContent.innerHTML = '';
-          previewContent.appendChild(img);
-
-          document.getElementById('pdfPreviewPlaceholder').style.display = 'none';
-          previewContent.style.display = 'block';
-          document.getElementById('btnDownloadPdfTab').style.display = 'inline-block';
-        }).catch(function(err) {
-          document.getElementById('pdfPreviewPlaceholder').innerHTML = '<i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 10px;"></i><p>เกิดข้อผิดพลาดในการสร้างตัวอย่าง</p>';
-          console.error(err);
-        });
+        document.getElementById('pdfPreviewPlaceholder').style.display = 'none';
+        document.getElementById('btnDownloadPdfTab').style.display = 'inline-block';
       }
 
       function downloadPreviewPdf() {
@@ -2905,19 +2891,34 @@
 
           const opt = {
             margin: 10,
-            filename: 'report_' + new Date().getTime() + '.pdf',
+            filename: 'รายงานสรุปผลการประเมิน_' + new Date().getTime() + '.pdf',
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true, logging: false },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
           };
-          
-          html2pdf().set(opt).from(window.currentPdfHtmlContent).save().then(() => {
-            btn.innerHTML = originalHTML;
-            btn.disabled = false;
-          });
+
+          const element = document.getElementById('reportContainer');
+          if (element) {
+            html2pdf().set(opt).from(element).save().then(() => {
+              btn.innerHTML = originalHTML;
+              btn.disabled = false;
+            }).catch(err => {
+              console.warn('html2pdf fallback to window.print():', err);
+              btn.innerHTML = originalHTML;
+              btn.disabled = false;
+              window.print();
+            });
+          } else {
+            html2pdf().set(opt).from(window.currentPdfHtmlContent).save().then(() => {
+              btn.innerHTML = originalHTML;
+              btn.disabled = false;
+            }).catch(() => {
+              btn.innerHTML = originalHTML;
+              btn.disabled = false;
+            });
+          }
         }
       }
-
 function generateReportHtml() {
         const data = window.lastDashboardData;
         if (!data || !data.success) return '';
