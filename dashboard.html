@@ -3110,17 +3110,26 @@ function generateReportHtml() {
                 <tbody>
           `;
 
-          for (let i = 0; i < data.trendData.labels.length; i++) {
-            const label = data.trendData.labels[i];
-            const e = data.trendData.excellent[i] || 0;
-            const g = data.trendData.good[i] || 0;
-            const p = data.trendData.poor[i] || 0;
+          const hasTrendData = data && data.trendData && Array.isArray(data.trendData.labels) && data.trendData.labels.length > 0;
+          if (hasTrendData) {
+            for (let i = 0; i < data.trendData.labels.length; i++) {
+              const label = data.trendData.labels[i];
+              const e = (data.trendData.excellent && data.trendData.excellent[i]) || 0;
+              const g = (data.trendData.good && data.trendData.good[i]) || 0;
+              const p = (data.trendData.poor && data.trendData.poor[i]) || 0;
+              html += `
+                    <tr>
+                      <td style="padding: 3mm; border: 1px solid #000; text-align: center;">${label}</td>
+                      <td style="padding: 3mm; border: 1px solid #000;">${e}</td>
+                      <td style="padding: 3mm; border: 1px solid #000;">${g}</td>
+                      <td style="padding: 3mm; border: 1px solid #000;">${p}</td>
+                    </tr>
+              `;
+            }
+          } else {
             html += `
                   <tr>
-                    <td style="padding: 3mm; border: 1px solid #000; text-align: center;">${label}</td>
-                    <td style="padding: 3mm; border: 1px solid #000;">${e}</td>
-                    <td style="padding: 3mm; border: 1px solid #000;">${g}</td>
-                    <td style="padding: 3mm; border: 1px solid #000;">${p}</td>
+                    <td colspan="4" style="padding: 3mm; border: 1px solid #000; text-align: center; color: #64748b;">ไม่มีข้อมูลแนวโน้มความพึงพอใจในช่วงเวลานี้</td>
                   </tr>
             `;
           }
