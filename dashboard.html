@@ -3988,28 +3988,44 @@ function generateReportHtml() {
 
       let draggedAdminStaffId = null;
 
+      function swapStaffFields_(a, b) {
+        const fields = ['name', 'department', 'imageUrl', 'showImage', 'isHidden'];
+        fields.forEach(function (f) {
+          const tmp = a[f];
+          a[f] = b[f];
+          b[f] = tmp;
+        });
+      }
+
       function reorderAdminStaff(fromId, toId) {
         if (!fromId || !toId || fromId === toId) return;
-        const fromIdx = adminStaffData.findIndex(function (s) { return s.id === fromId; });
-        const toIdx = adminStaffData.findIndex(function (s) { return s.id === toId; });
-        if (fromIdx < 0 || toIdx < 0) return;
+        const fromStaff = adminStaffData.find(function (s) { return s.id === fromId; });
+        const toStaff = adminStaffData.find(function (s) { return s.id === toId; });
+        if (!fromStaff || !toStaff) return;
 
-        const moved = adminStaffData.splice(fromIdx, 1)[0];
-        adminStaffData.splice(toIdx, 0, moved);
+        // สลับข้อมูลเจ้าหน้าที่ (ชื่อ, ฝ่าย, รูปภาพ, สถานะ) เข้าเคาท์เตอร์ของกันและกันทันที
+        swapStaffFields_(fromStaff, toStaff);
+        updateAdminDeptFilter();
         filterAdminStaff();
 
-        const orderedIds = adminStaffData.map(function (s) { return s.id; });
-        callGasApiDashboard('updateStaffOrder', { sessionToken: sessionToken, orderedIds: orderedIds })
+        callGasApiDashboard('swapStaffCounters', { sessionToken: sessionToken, fromStaffId: fromId, toStaffId: toId })
           .then(function (res) {
             if (res && res.authRequired) { handleAuthExpired(res.message); return; }
             if (res && res.success) {
-              Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'บันทึกลำดับเรียบร้อย', showConfirmButton: false, timer: 1500 });
+              Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'สลับเจ้าหน้าที่ประจำเคาท์เตอร์เรียบร้อย', showConfirmButton: false, timer: 1800 });
             } else {
-              Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: (res && res.message) || 'บันทึกลำดับไม่สำเร็จ', showConfirmButton: false, timer: 2500 });
+              // คืนค่าเดิมหากบันทึกไม่สำเร็จ
+              swapStaffFields_(fromStaff, toStaff);
+              updateAdminDeptFilter();
+              filterAdminStaff();
+              Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: (res && res.message) || 'สลับเจ้าหน้าที่ไม่สำเร็จ', showConfirmButton: false, timer: 2500 });
             }
           })
           .catch(function (err) {
-            Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'บันทึกลำดับไม่สำเร็จ: ' + err.message, showConfirmButton: false, timer: 2500 });
+            swapStaffFields_(fromStaff, toStaff);
+            updateAdminDeptFilter();
+            filterAdminStaff();
+            Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'สลับเจ้าหน้าที่ไม่สำเร็จ: ' + err.message, showConfirmButton: false, timer: 2500 });
           });
       }
 
