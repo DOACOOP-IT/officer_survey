@@ -26,6 +26,9 @@
   <!-- html2pdf.js สำหรับสร้างไฟล์ PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
+  <!-- JSZip สำหรับบีบอัด QR Code ทั้งหมดเป็นไฟล์ ZIP -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
   <!-- รวม CSS หลักของระบบ -->
   <style>
     /* 
@@ -2366,6 +2369,10 @@
             <option value="">ทุกแผนก</option>
           </select>
         </div>
+        <button id="btnDownloadAllQR" onclick="openDownloadAllQRModal()"
+          style="padding: 0.55rem 1rem; border: none; border-radius: 12px; cursor: pointer; background: linear-gradient(135deg, #0ea5e9, #38bdf8); color: white; font-family: inherit; font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(14,165,233,0.25); white-space: nowrap;">
+          <i class="fas fa-file-archive"></i> โหลด QR ทั้งหมด
+        </button>
         <div style="display: flex; gap: 5px; background: rgba(102, 126, 234, 0.1); padding: 5px; border-radius: 12px;">
           <button id="btnAdminGrid" onclick="setAdminLayout('grid')"
             style="padding: 0.5rem 1rem; border: none; border-radius: 8px; cursor: pointer; background: white; color: #667eea; box-shadow: 0 2px 5px rgba(0,0,0,0.1); font-size: 1rem;"><i
@@ -4463,6 +4470,223 @@ function generateReportHtml() {
           link.click();
         } catch (e) {
           Swal.fire({ icon: 'error', title: 'ดาวน์โหลดไม่สำเร็จ', text: 'เบราว์เซอร์ไม่อนุญาตให้บันทึกภาพนี้ ลองคลิกขวาที่ภาพแล้วเลือกบันทึกแทน', confirmButtonColor: '#667eea' });
+        }
+      }
+      function sanitizeFilename_(str) {
+        return String(str || '').replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_').trim();
+      }
+
+      function loadImageCors_(url) {
+        return new Promise(function (resolve, reject) {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = function () { resolve(img); };
+          img.onerror = function () { reject(new Error('โหลดรูป QR ไม่สำเร็จ')); };
+          img.src = url;
+        });
+      }
+
+      function renderStaffQRCanvas_(staff, qrImg, includeInfo) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        if (!includeInfo) {
+          // โหมดเฉพาะ QR Code อย่างเดียว (คมชัดพร้อมขอบขาว)
+          const pad = 24;
+          const qrSize = 400;
+          canvas.width = qrSize + pad * 2;
+          canvas.height = qrSize + pad * 2;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(qrImg, pad, pad, qrSize, qrSize);
+          return canvas;
+        }
+
+        // โหมดการ์ดพร้อมข้อมูลเจ้าหน้าที่ (แบบเดียวกับหน้า Preview)
+        canvas.width = 350;
+        canvas.height = 480;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+        gradient.addColorStop(0, '#667eea');
+        gradient.addColorStop(1, '#764ba2');
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = 6;
+        if (ctx.roundRect) {
+          ctx.beginPath();
+          ctx.roundRect(3, 3, canvas.width - 6, canvas.height - 6, 15);
+          ctx.stroke();
+        } else {
+          ctx.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
+        }
+
+        ctx.fillStyle = '#667eea';
+        ctx.fillRect(15, 15, canvas.width - 30, 55);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 16px Kanit, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('สหกรณ์ออมทรัพย์กรมวิชาการเกษตร', canvas.width / 2, 38);
+        ctx.font = '12px Kanit, sans-serif';
+        ctx.fillText('ระบบประเมินความพึงพอใจ', canvas.width / 2, 58);
+
+        const qrSize = 200;
+        const qrX = (canvas.width - qrSize) / 2;
+        const qrY = 90;
+        ctx.fillStyle = '#f8f9fa';
+        ctx.fillRect(qrX - 10, qrY - 10, qrSize + 20, qrSize + 20);
+        ctx.strokeStyle = '#e5e7eb';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(qrX - 10, qrY - 10, qrSize + 20, qrSize + 20);
+        ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+
+        ctx.fillStyle = '#4a4a4a';
+        ctx.font = 'bold 18px Kanit, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(staff.name || 'ไม่ระบุชื่อ', canvas.width / 2, 325);
+
+        ctx.fillStyle = '#9ca3af';
+        ctx.font = '14px Kanit, sans-serif';
+        ctx.fillText(staff.department || '', canvas.width / 2, 350);
+
+        ctx.fillStyle = '#667eea';
+        ctx.font = 'bold 13px Kanit, sans-serif';
+        ctx.fillText(staff.counter || '', canvas.width / 2, 375);
+
+        ctx.strokeStyle = '#667eea';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(50, 395);
+        ctx.lineTo(canvas.width - 50, 395);
+        ctx.stroke();
+
+        ctx.fillStyle = '#a1a1aa';
+        ctx.font = '11px Kanit, sans-serif';
+        ctx.fillText('สแกน QR Code เพื่อร่วมประเมินความพึงพอใจ', canvas.width / 2, 410);
+        ctx.fillText('ฝ่ายสารสนเทศ © 2026', canvas.width / 2, 430);
+
+        return canvas;
+      }
+
+      function openDownloadAllQRModal() {
+        const list = (filteredAdminStaffData && filteredAdminStaffData.length > 0) ? filteredAdminStaffData : adminStaffData;
+        if (!list || list.length === 0) {
+          Swal.fire({ icon: 'warning', title: 'ไม่พบรายชื่อเจ้าหน้าที่', confirmButtonColor: '#667eea' });
+          return;
+        }
+        if (typeof JSZip === 'undefined') {
+          Swal.fire({ icon: 'error', title: 'โหลดไลบรารี ZIP ไม่สำเร็จ', text: 'กรุณารีเฟรชหน้าเว็บแล้วลองใหม่', confirmButtonColor: '#667eea' });
+          return;
+        }
+
+        Swal.fire({
+          title: 'ดาวน์โหลด QR Code ทั้งหมด',
+          html:
+            '<p style="color:#6b7280; font-size:0.9rem; margin-bottom:14px;">จำนวน <b>' + list.length + '</b> รายการ (ตามรายการที่แสดงอยู่) — กรุณาเลือกรูปแบบไฟล์:</p>' +
+            '<div style="display:flex; flex-direction:column; gap:10px; text-align:left;">' +
+            '  <label style="display:flex; align-items:center; gap:10px; padding:12px; border:2px solid #e0e7ff; border-radius:12px; cursor:pointer; background:#f8fafc;">' +
+            '    <input type="radio" name="qrDownloadMode" value="with_info" checked style="width:18px; height:18px; accent-color:#667eea;">' +
+            '    <div>' +
+            '      <div style="font-weight:600; color:#1f2937;">การ์ดพร้อมข้อมูลเจ้าหน้าที่</div>' +
+            '      <div style="font-size:0.8rem; color:#6b7280;">มีกรอบหัวข้อ + รูป QR Code + ชื่อ + ฝ่าย + เคาท์เตอร์</div>' +
+            '    </div>' +
+            '  </label>' +
+            '  <label style="display:flex; align-items:center; gap:10px; padding:12px; border:2px solid #e5e7eb; border-radius:12px; cursor:pointer; background:#ffffff;">' +
+            '    <input type="radio" name="qrDownloadMode" value="qr_only" style="width:18px; height:18px; accent-color:#667eea;">' +
+            '    <div>' +
+            '      <div style="font-weight:600; color:#1f2937;">เฉพาะรูป QR Code อย่างเดียว</div>' +
+            '      <div style="font-size:0.8rem; color:#6b7280;">ได้เฉพาะรูป QR Code พื้นขาวล้วน สำหรับนำไปวางในสื่อ/โปสเตอร์</div>' +
+            '    </div>' +
+            '  </label>' +
+            '</div>',
+          showCancelButton: true,
+          confirmButtonText: '<i class="fas fa-download"></i> เริ่มดาวน์โหลด (ZIP)',
+          cancelButtonText: 'ยกเลิก',
+          confirmButtonColor: '#0ea5e9',
+          cancelButtonColor: '#9ca3af',
+          preConfirm: function () {
+            const checked = document.querySelector('input[name="qrDownloadMode"]:checked');
+            return checked ? checked.value : 'with_info';
+          }
+        }).then(function (result) {
+          if (result.isConfirmed) {
+            downloadAllQRCodes(list, result.value === 'with_info');
+          }
+        });
+      }
+
+      async function downloadAllQRCodes(list, includeInfo) {
+        Swal.fire({
+          title: 'กำลังสร้างไฟล์ QR Code...',
+          html: '<div id="qrZipProgress">0 / ' + list.length + ' รายการ</div>',
+          allowOutsideClick: false,
+          didOpen: function () { Swal.showLoading(); }
+        });
+
+        try {
+          const zip = new JSZip();
+          let successCount = 0;
+
+          for (let i = 0; i < list.length; i++) {
+            const staff = list[i];
+            const progressEl = document.getElementById('qrZipProgress');
+            if (progressEl) progressEl.textContent = (i + 1) + ' / ' + list.length + ' — ' + (staff.name || staff.id);
+
+            const targetUrl = 'https://liff.line.me/2011164567-UjK6uTMI?counter=' + staff.id;
+            const qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=' + encodeURIComponent(targetUrl);
+
+            try {
+              const qrImg = await loadImageCors_(qrApiUrl);
+              const canvas = renderStaffQRCanvas_(staff, qrImg, includeInfo);
+              const blob = await new Promise(function (resolve) { canvas.toBlob(resolve, 'image/png'); });
+              if (blob) {
+                const idxStr = String(i + 1).padStart(2, '0');
+                const safeCounter = sanitizeFilename_(staff.counter || ('ID_' + staff.id));
+                const safeName = sanitizeFilename_(staff.name || staff.id);
+                const filename = idxStr + '_' + safeCounter + '_' + safeName + '.png';
+                zip.file(filename, blob);
+                successCount++;
+              }
+            } catch (itemErr) {
+              console.warn('Skip QR for staff:', staff.id, itemErr);
+            }
+          }
+
+          if (successCount === 0) {
+            throw new Error('ไม่สามารถสร้างรูป QR Code ได้เลย กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
+          }
+
+          const progressEl = document.getElementById('qrZipProgress');
+          if (progressEl) progressEl.textContent = 'กำลังบีบอัดไฟล์ ZIP...';
+
+          const zipBlob = await zip.generateAsync({ type: 'blob' });
+          const now = new Date();
+          const dateTag = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
+          const modeTag = includeInfo ? 'WithInfo' : 'OnlyQR';
+          const zipUrl = URL.createObjectURL(zipBlob);
+          const a = document.createElement('a');
+          a.href = zipUrl;
+          a.download = 'QR_Officers_' + modeTag + '_' + dateTag + '.zip';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(function () { URL.revokeObjectURL(zipUrl); }, 5000);
+
+          Swal.fire({
+            icon: 'success',
+            title: 'ดาวน์โหลดเรียบร้อย!',
+            text: 'สร้างและบันทึก QR Code ทั้งหมด ' + successCount + ' รายการเป็นไฟล์ ZIP แล้ว',
+            timer: 2500,
+            showConfirmButton: false
+          });
+        } catch (err) {
+          Swal.fire({
+            icon: 'error',
+            title: 'เกิดข้อผิดพลาด',
+            text: err && err.message ? err.message : String(err),
+            confirmButtonColor: '#667eea'
+          });
         }
       }
     </script>
