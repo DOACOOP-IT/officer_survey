@@ -4491,14 +4491,24 @@ function generateReportHtml() {
         const ctx = canvas.getContext('2d');
 
         if (!includeInfo) {
-          // โหมดเฉพาะ QR Code อย่างเดียว (คมชัดพร้อมขอบขาว)
+          // โหมดเฉพาะ QR Code + เคาท์เตอร์และชื่อเจ้าหน้าที่ด้านล่าง (พื้นขาว ไม่มีกรอบ/หัวข้อ)
           const pad = 24;
           const qrSize = 400;
+          const footerHeight = 76;
           canvas.width = qrSize + pad * 2;
-          canvas.height = qrSize + pad * 2;
+          canvas.height = qrSize + pad * 2 + footerHeight;
           ctx.fillStyle = '#ffffff';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(qrImg, pad, pad, qrSize, qrSize);
+
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#667eea';
+          ctx.font = 'bold 20px Kanit, sans-serif';
+          ctx.fillText(staff.counter || '', canvas.width / 2, pad + qrSize + 34);
+
+          ctx.fillStyle = '#1f2937';
+          ctx.font = 'bold 20px Kanit, sans-serif';
+          ctx.fillText(staff.name || 'ไม่ระบุชื่อ', canvas.width / 2, pad + qrSize + 64);
           return canvas;
         }
 
@@ -4596,7 +4606,7 @@ function generateReportHtml() {
             '    <input type="radio" name="qrDownloadMode" value="qr_only" style="width:18px; height:18px; accent-color:#667eea;">' +
             '    <div>' +
             '      <div style="font-weight:600; color:#1f2937;">เฉพาะรูป QR Code อย่างเดียว</div>' +
-            '      <div style="font-size:0.8rem; color:#6b7280;">ได้เฉพาะรูป QR Code พื้นขาวล้วน สำหรับนำไปวางในสื่อ/โปสเตอร์</div>' +
+            '      <div style="font-size:0.8rem; color:#6b7280;">รูป QR Code พื้นขาว พร้อมเคาท์เตอร์และชื่อเจ้าหน้าที่ด้านล่าง (ไม่มีกรอบ/หัวข้อ)</div>' +
             '    </div>' +
             '  </label>' +
             '</div>',
