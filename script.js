@@ -14,6 +14,7 @@ const MY_LIFF_ID = '2011164567-UjK6uTMI';
 let allStaffData = [];
 let webAppUrl = "";
 let gateToken = "";
+let currentLineUid = "";
 let serverStaffId = "";
 let serverIsAdmin = "false";
 let scanTime = "";
@@ -303,46 +304,104 @@ function startAppLogic() {
   }
 }
 
+function verifyAndLoadEvaluation(lineUid, urlGateToken) {
+  callGasApi('getEvaluationInitData', {
+    lineUid: lineUid || '',
+    staffId: serverStaffId,
+    gateToken: urlGateToken || ''
+  })
+    .then(function(res) {
+      if (res && res.success && res.memberData) {
+        localStorage.setItem('officer_survey_member_no', res.memberData.memberNo || '');
+        localStorage.setItem('officer_survey_member_name', res.memberData.name || '');
+
+        currentLineUid = lineUid || res.memberData.lineUid || '';
+        gateToken = urlGateToken || currentLineUid;
+
+        // ล้าง ?t= ออกจากแถบ URL เพื่อความปลอดภัย โดยคง ?counter= ไว้
+        if (urlGateToken && window.history && window.history.replaceState) {
+          var cleanUrl = window.location.pathname + '?counter=' + encodeURIComponent(serverStaffId);
+          window.history.replaceState({}, document.title, cleanUrl);
+        }
+
+        if (res.staff) {
+          setCachedStaff(serverStaffId, res.staff);
+          renderStaffUI(res.staff);
+        } else {
+          onGetStaffFailure('ไม่พบข้อมูลเจ้าหน้าที่ประจำเคาน์เตอร์นี้');
+        }
+      } else if (res && res.requireRegistration) {
+        clearAllAuthCache();
+        if (urlGateToken) {
+          // ป้องกันการวนลูปหากเพิ่งกลับมาจากระบบลงทะเบียนกลางแล้ว Token ยังไม่ผ่าน
+          onGetStaffFailure('ไม่สามารถยืนยันสิทธิ์สมาชิกได้ กรุณาสแกน QR Code ใหม่อีกครั้ง');
+        } else {
+          redirectToRegistration();
+        }
+      } else {
+        clearAllAuthCache();
+        onGetStaffFailure(res ? res.message : 'ตรวจสอบสิทธิ์ล้มเหลว');
+      }
+    })
+    .catch(function(err) {
+      onGetStaffFailure('เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว: ' + (err.message || err));
+    });
+}
+
 function initLiffAndCheckAuth() {
+  var urlGateToken = gateToken;
+
+  // กรณีกลับมาจากระบบลงทะเบียนกลางพร้อม Gate Token (?t=...)
+  if (urlGateToken) {
+    if (typeof liff !== 'undefined') {
+      liff.init({ liffId: MY_LIFF_ID })
+        .then(function() {
+          if (liff.isLoggedIn() && liff.getAccessToken()) {
+            return liff.getProfile().then(function(profile) {
+              return profile && profile.userId ? profile.userId : '';
+            }).catch(function() { return ''; });
+          }
+          return '';
+        })
+        .catch(function() { return ''; })
+        .then(function(uid) {
+          verifyAndLoadEvaluation(uid, urlGateToken);
+        });
+    } else {
+      verifyAndLoadEvaluation('', urlGateToken);
+    }
+    return;
+  }
+
+  // กรณีสแกน QR Code ปกติ -> ดึง LINE UID ผ่าน LIFF
   liff.init({ liffId: MY_LIFF_ID })
     .then(function() {
-      if (!liff.isLoggedIn()) {
-        liff.login();
-      } else {
-        liff.getProfile().then(function(profile) {
-          var lineUid = profile.userId;
-          gateToken = lineUid;
-
-          // เรียก Fast 1-Shot API: ตรวจสิทธิ์ใน Google Sheets + ดึงข้อมูลเจ้าหน้าที่
-          callGasApi('getEvaluationInitData', { lineUid: lineUid, staffId: serverStaffId })
-            .then(function(res) {
-              if (res && res.success && res.memberData) {
-                // บันทึกเลขสมาชิกปัจจุบัน
-                localStorage.setItem('officer_survey_member_no', res.memberData.memberNo || '');
-                localStorage.setItem('officer_survey_member_name', res.memberData.name || '');
-
-                if (res.staff) {
-                  setCachedStaff(serverStaffId, res.staff);
-                  renderStaffUI(res.staff);
-                } else {
-                  onGetStaffFailure('ไม่พบข้อมูลเจ้าหน้าที่ประจำเคาน์เตอร์นี้');
-                }
-              } else if (res && res.requireRegistration) {
-                // ยังไม่ได้ลงทะเบียน หรือเพิ่งถูกลบออกจากชีต -> เด้งไปหน้าลงทะเบียนทันที
-                clearAllAuthCache();
-                redirectToRegistration();
-              } else {
-                clearAllAuthCache();
-                onGetStaffFailure(res ? res.message : 'ตรวจสอบสิทธิ์ล้มเหลว');
-              }
-            })
-            .catch(function(err) {
-              onGetStaffFailure('เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว: ' + (err.message || err));
-            });
-        }).catch(function(err) {
-          onGetStaffFailure('ดึงข้อมูล LINE ไม่สำเร็จ: ' + (err.message || err));
-        });
+      if (!liff.isLoggedIn() || !liff.getAccessToken()) {
+        liff.login({ redirectUri: window.location.href });
+        return;
       }
+
+      liff.getProfile()
+        .then(function(profile) {
+          try { sessionStorage.removeItem('liff_relogin_tried'); } catch (e) {}
+          var lineUid = profile.userId;
+          currentLineUid = lineUid;
+          gateToken = lineUid;
+          verifyAndLoadEvaluation(lineUid, '');
+        })
+        .catch(function(err) {
+          var msg = (err && err.message) ? err.message : String(err);
+          var alreadyTried = false;
+          try { alreadyTried = !!sessionStorage.getItem('liff_relogin_tried'); } catch (e) {}
+
+          if ((msg.indexOf('access_token') !== -1 || msg.indexOf('login') !== -1) && !alreadyTried) {
+            try { sessionStorage.setItem('liff_relogin_tried', '1'); } catch (e) {}
+            try { liff.logout(); } catch (e) {}
+            liff.login({ redirectUri: window.location.href });
+            return;
+          }
+          onGetStaffFailure('ดึงข้อมูล LINE ไม่สำเร็จ: ' + msg);
+        });
     })
     .catch(function(err) {
       onGetStaffFailure('LIFF Init Failed: ' + (err.message || err));
@@ -369,7 +428,8 @@ function renderStaffUI(staff) {
 
 function redirectToRegistration() {
   clearAllAuthCache();
-  window.location.replace(REGISTER_LIFF);
+  var returnUrl = SURVEY_FRONTEND_URL + '?counter=' + encodeURIComponent(serverStaffId);
+  window.location.replace(REGISTER_LIFF + '?returnUrl=' + encodeURIComponent(returnUrl));
 }
 
 function onGetStaffFailure(err) {
@@ -592,6 +652,7 @@ function submitEvaluation() {
     rating: ratingInput.value,
     comment: document.getElementById('commentInput').value.trim(),
     token: gateToken,
+    lineUid: currentLineUid,
     memberNo: localStorage.getItem('officer_survey_member_no') || '',
     isAdmin: serverIsAdmin === "true",
     signatureBase64: ""
