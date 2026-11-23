@@ -3979,6 +3979,33 @@ function generateReportHtml() {
         }
       }
 
+      let draggedAdminStaffId = null;
+
+      function reorderAdminStaff(fromId, toId) {
+        if (!fromId || !toId || fromId === toId) return;
+        const fromIdx = adminStaffData.findIndex(function (s) { return s.id === fromId; });
+        const toIdx = adminStaffData.findIndex(function (s) { return s.id === toId; });
+        if (fromIdx < 0 || toIdx < 0) return;
+
+        const moved = adminStaffData.splice(fromIdx, 1)[0];
+        adminStaffData.splice(toIdx, 0, moved);
+        filterAdminStaff();
+
+        const orderedIds = adminStaffData.map(function (s) { return s.id; });
+        callGasApiDashboard('updateStaffOrder', { sessionToken: sessionToken, orderedIds: orderedIds })
+          .then(function (res) {
+            if (res && res.authRequired) { handleAuthExpired(res.message); return; }
+            if (res && res.success) {
+              Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'บันทึกลำดับเรียบร้อย', showConfirmButton: false, timer: 1500 });
+            } else {
+              Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: (res && res.message) || 'บันทึกลำดับไม่สำเร็จ', showConfirmButton: false, timer: 2500 });
+            }
+          })
+          .catch(function (err) {
+            Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'บันทึกลำดับไม่สำเร็จ: ' + err.message, showConfirmButton: false, timer: 2500 });
+          });
+      }
+
       function renderAdminGrid() {
         const grid = document.getElementById('adminStaffGrid');
         grid.innerHTML = '';
@@ -4003,13 +4030,58 @@ function generateReportHtml() {
 
           const card = document.createElement('div');
           card.id = 'adminCard_' + staff.id;
-          card.style.cssText = 'background: white; border-radius: 18px; padding: 1.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.08); border: 2px solid #f3f4f6; transition: all 0.3s; cursor: pointer;';
-          card.onmouseenter = function () { this.style.transform = 'translateY(-4px)'; this.style.boxShadow = '0 8px 25px rgba(102,126,234,0.2)'; };
-          card.onmouseleave = function () { this.style.transform = 'translateY(0)'; this.style.boxShadow = '0 4px 15px rgba(0,0,0,0.08)'; };
+          card.draggable = true;
+          card.dataset.staffId = staff.id;
+          card.title = 'ลากเพื่อสลับลำดับการ์ด';
+          card.style.cssText = 'position: relative; background: white; border-radius: 18px; padding: 1.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.08); border: 2px solid #f3f4f6; transition: all 0.25s; cursor: grab;';
+          card.onmouseenter = function () { if (!draggedAdminStaffId) { this.style.transform = 'translateY(-4px)'; this.style.boxShadow = '0 8px 25px rgba(102,126,234,0.2)'; } };
+          card.onmouseleave = function () { if (!draggedAdminStaffId) { this.style.transform = 'translateY(0)'; this.style.boxShadow = '0 4px 15px rgba(0,0,0,0.08)'; } };
+
+          // Drag & Drop Events สำหรับขยับ/เรียงลำดับ adminCard
+          card.addEventListener('dragstart', function (e) {
+            draggedAdminStaffId = staff.id;
+            this.style.opacity = '0.45';
+            this.style.cursor = 'grabbing';
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', staff.id);
+          });
+          card.addEventListener('dragover', function (e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            if (draggedAdminStaffId && draggedAdminStaffId !== staff.id) {
+              this.style.border = '2px dashed #667eea';
+              this.style.background = '#f5f7ff';
+            }
+          });
+          card.addEventListener('dragleave', function () {
+            this.style.border = '2px solid #f3f4f6';
+            this.style.background = 'white';
+          });
+          card.addEventListener('drop', function (e) {
+            e.preventDefault();
+            this.style.border = '2px solid #f3f4f6';
+            this.style.background = 'white';
+            const fromId = draggedAdminStaffId || e.dataTransfer.getData('text/plain');
+            draggedAdminStaffId = null;
+            if (fromId && fromId !== staff.id) {
+              reorderAdminStaff(fromId, staff.id);
+            }
+          });
+          card.addEventListener('dragend', function () {
+            draggedAdminStaffId = null;
+            this.style.opacity = '1';
+            this.style.cursor = 'grab';
+            grid.querySelectorAll('[id^="adminCard_"]').forEach(function (el) {
+              el.style.border = '2px solid #f3f4f6';
+              el.style.background = 'white';
+              el.style.transform = 'translateY(0)';
+            });
+          });
 
           if (adminViewMode === 'list') {
             card.innerHTML =
               '<div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">' +
+              '<span style="color: #cbd5e1; font-size: 1.1rem; cursor: grab; padding: 0 4px;" title="ลากเพื่อสลับลำดับ"><i class="fas fa-grip-vertical"></i></span>' +
               '<div style="width: 60px; height: 60px; flex-shrink: 0; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; overflow: hidden; border: 2px solid #e5e7eb;">' +
               avatarHtml +
               '</div>' +
@@ -4024,6 +4096,7 @@ function generateReportHtml() {
               '</div>';
           } else {
             card.innerHTML =
+              '<span style="position: absolute; top: 12px; left: 14px; color: #cbd5e1; font-size: 1rem; cursor: grab;" title="ลากเพื่อสลับลำดับ"><i class="fas fa-grip-vertical"></i></span>' +
               '<div style="text-align: center;">' +
               '<div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); margin: 0 auto 1rem; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 3px solid #e5e7eb;">' +
               avatarHtml +
