@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 
 <head>
@@ -552,7 +552,7 @@
       flex-direction: column;
       align-items: center;
       gap: 0.5rem;
-      flex: 1; min-width: 0;
+      width: 30%;
     }
 
     .stars label .emoji-icon {
@@ -2035,7 +2035,7 @@
 
         <!-- กล่องความคิดเห็นทั้งหมด -->
         <div class="dashboard-card" style="margin-top: 1.5rem; display: flex; flex-direction: column;">
-          <div class="skeleton skeleton-title" style="flex: 1; min-width: 0;"></div>
+          <div class="skeleton skeleton-title" style="width: 30%;"></div>
           <div class="skeleton skeleton-text" style="width: 50%; margin-bottom: 20px;"></div>
           <div class="comments-grid" style="flex-grow: 1;">
             <div class="skeleton skeleton-card" style="border-radius: 8px;"></div>
@@ -2153,18 +2153,7 @@
         <!-- Left: Filters and Options (Original Style) -->
         <div class="dashboard-card" style="display: flex; flex-direction: column; overflow-y: auto; padding: 20px; height: 100%;">
           <style>
-            .print-tab-grid { display: grid; grid-template-columns: 1fr 1.1fr 1.1fr; gap: 20px; }
-            
-            /* Content Check Cards */
-            .content-check-card { display: block; margin-bottom: 6px; }
-            .content-check-card input { display: none; }
-            .content-check-card .card-content { display: flex; align-items: center; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: #ffffff; cursor: pointer; transition: all 0.2s ease; }
-            .content-check-card:hover .card-content { background: #f0fdf4; border-color: #86efac; }
-            .content-check-card input:checked + .card-content { border-color: #10b981; background: #f0fdf4; }
-            .content-check-card .icon { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: #f1f5f9; color: #94a3b8; font-size: 0.85rem; margin-right: 12px; transition: all 0.2s ease; }
-            .content-check-card input:checked + .card-content .icon { background: #10b981; color: #ffffff; }
-            .content-check-card .title { font-weight: 400; color: #475569; font-size: 0.88rem; flex: 1; }
-            .content-check-card input:checked + .card-content .title { font-weight: 500; color: #166534; }
+            .print-tab-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
             .print-tab-col { display: flex; flex-direction: column; gap: 20px; }
             .print-tab-col h3 { font-size: 1.05rem; font-weight: 600; color: #1e293b; margin-bottom: 12px; display: flex; align-items: center; margin-top: 0; }
             .print-tab-col h3 i { color: #3b82f6; margin-right: 8px; font-size: 1.1rem; }
@@ -2276,46 +2265,6 @@
               </div>
               <div style="margin-top: auto; padding-top: 20px;">
                 <button class="premium-btn" onclick="generatePdfPreview()" style="width: 100%; justify-content: center; padding: 12px; font-size: 1rem;"><span class="btn-text">ดูตัวอย่างรายงาน (Preview)</span><i class="fas fa-search"></i></button>
-              </div>
-            </div>
-            <div class="print-tab-col">
-              <h3><i class="fas fa-layer-group"></i> ประเภทรายงาน (Report Type)</h3>
-              <div style="display: flex; flex-direction: column; gap: 0; margin-bottom: 5px;">
-                <label class="content-check-card">
-                  <input type="radio" name="printContentFilterTab" value="all" checked>
-                  <div class="card-content">
-                    <span class="icon"><i class="fas fa-file-alt"></i></span>
-                    <span class="title">รายงานทั้งหมด <span style="font-size: 0.78rem; color: #64748b; margin-left: 6px;">(ครบทุกส่วน)</span></span>
-                  </div>
-                </label>
-                <label class="content-check-card">
-                  <input type="radio" name="printContentFilterTab" value="overview_only">
-                  <div class="card-content">
-                    <span class="icon"><i class="fas fa-chart-pie"></i></span>
-                    <span class="title">เฉพาะ ภาพรวมสถิติการประเมิน</span>
-                  </div>
-                </label>
-                <label class="content-check-card">
-                  <input type="radio" name="printContentFilterTab" value="score_only">
-                  <div class="card-content">
-                    <span class="icon"><i class="fas fa-user-check"></i></span>
-                    <span class="title">เฉพาะ คะแนนรายบุคคล</span>
-                  </div>
-                </label>
-                <label class="content-check-card">
-                  <input type="radio" name="printContentFilterTab" value="trend_only">
-                  <div class="card-content">
-                    <span class="icon"><i class="fas fa-chart-line"></i></span>
-                    <span class="title">เฉพาะ แนวโน้มความพึงพอใจรายวัน</span>
-                  </div>
-                </label>
-                <label class="content-check-card">
-                  <input type="radio" name="printContentFilterTab" value="comment_only">
-                  <div class="card-content">
-                    <span class="icon"><i class="fas fa-comments"></i></span>
-                    <span class="title">เฉพาะ ข้อเสนอแนะเพิ่มเติม</span>
-                  </div>
-                </label>
               </div>
             </div>
             <div class="print-tab-col">
@@ -2831,57 +2780,58 @@
           return;
         }
 
-        let contentRadio = document.querySelector('input[name="printContentFilterTab"]:checked');
-        let selectedContent = contentRadio ? contentRadio.value : 'all';
-
         // Set global filters so that generateReportHtml uses them
         window.printFilters = {
           dateRange: selectedDate,
           staffFilter: selectedStaff,
-          contentFilter: selectedContent
+          contentFilter: 'all'
         };
 
         document.getElementById('pdfPreviewPlaceholder').style.display = 'block';
-        document.getElementById('pdfPreviewPlaceholder').innerHTML = '<i class="fas fa-circle-notch fa-spin" style="font-size: 3rem; color: #f1f5f9; margin-bottom: 15px;"></i><p style="font-size: 1.1rem; color: #f1f5f9;">กำลังดึงและประมวลผลตัวอย่างเอกสาร...</p>';
+        document.getElementById('pdfPreviewPlaceholder').innerHTML = '<i class="fas fa-circle-notch fa-spin" style="font-size: 3rem; color: #f1f5f9; margin-bottom: 15px;"></i><p style="font-size: 1.1rem; color: #f1f5f9;">กำลังประมวลผลตัวอย่างเอกสาร...</p>';
         document.getElementById('pdfPreviewContent').style.display = 'none';
         document.getElementById('btnDownloadPdfTab').style.display = 'none';
 
-        // ดึงข้อมูลตามช่วงวันที่ที่เลือก (ถ้าไม่ตรงกับข้อมูลเดิม)
-        const fetchPromise = (selectedDate !== currentDateFilter)
-          ? callGasApiDashboard('getDashboardData', { sessionToken: sessionToken, dateFilter: selectedDate })
-          : Promise.resolve(window.lastDashboardData);
-
-        fetchPromise.then(function(res) {
-          if (res && res.success) {
-            window.lastDashboardData = res;
+        setTimeout(() => {
+          // Generate the original styled HTML string using the existing function
+          let htmlContent = generateReportHtml();
+          
+          if (!htmlContent) {
+             document.getElementById('pdfPreviewPlaceholder').innerHTML = 'ไม่มีข้อมูล';
+             return;
           }
-          renderPdfPreviewHtml();
-        }).catch(function(err) {
-          renderPdfPreviewHtml();
-        });
+          
+          window.currentPdfHtmlContent = htmlContent;
+          
+          const opt = {
+            margin: 10,
+            filename: 'report.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 1.5, useCORS: true, logging: false },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+          };
+          
+          // Use html2pdf to generate an Image of the PDF for preview
+          html2pdf().set(opt).from(htmlContent).toImg().get('img').then(function (img) {
+            img.style.width = '100%';
+            img.style.height = 'auto';
+            img.style.display = 'block';
+            
+            const previewContent = document.getElementById('pdfPreviewContent');
+            previewContent.innerHTML = '';
+            previewContent.appendChild(img);
+            
+            document.getElementById('pdfPreviewPlaceholder').style.display = 'none';
+            previewContent.style.display = 'block';
+            
+            document.getElementById('btnDownloadPdfTab').style.display = 'inline-block';
+          }).catch(function(err) {
+            document.getElementById('pdfPreviewPlaceholder').innerHTML = '<i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 10px;"></i><p>เกิดข้อผิดพลาดในการสร้างตัวอย่าง</p>';
+            console.error(err);
+          });
+        }, 100);
       }
-
-      function renderPdfPreviewHtml() {
-        let htmlContent = generateReportHtml();
-        if (!htmlContent) {
-          document.getElementById('pdfPreviewPlaceholder').innerHTML = '<i class="fas fa-info-circle" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 10px;"></i><p>ไม่มีข้อมูลสำหรับการออกรายงาน</p>';
-          return;
-        }
-
-        window.currentPdfHtmlContent = htmlContent;
-
-        const previewContent = document.getElementById('pdfPreviewContent');
-        previewContent.innerHTML = htmlContent;
-        previewContent.style.display = 'block';
-        previewContent.style.background = '#ffffff';
-        previewContent.style.padding = '0';
-        previewContent.style.boxShadow = '0 10px 25px rgba(0,0,0,0.2)';
-        previewContent.style.borderRadius = '4px';
-
-        document.getElementById('pdfPreviewPlaceholder').style.display = 'none';
-        document.getElementById('btnDownloadPdfTab').style.display = 'inline-block';
-      }
-
+      
       function downloadPreviewPdf() {
         if (window.currentPdfHtmlContent) {
           const btn = document.getElementById('btnDownloadPdfTab');
@@ -2891,34 +2841,19 @@
 
           const opt = {
             margin: 10,
-            filename: 'รายงานสรุปผลการประเมิน_' + new Date().getTime() + '.pdf',
+            filename: 'report_' + new Date().getTime() + '.pdf',
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true, logging: false },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
           };
-
-          const element = document.getElementById('reportContainer');
-          if (element) {
-            html2pdf().set(opt).from(element).save().then(() => {
-              btn.innerHTML = originalHTML;
-              btn.disabled = false;
-            }).catch(err => {
-              console.warn('html2pdf fallback to window.print():', err);
-              btn.innerHTML = originalHTML;
-              btn.disabled = false;
-              window.print();
-            });
-          } else {
-            html2pdf().set(opt).from(window.currentPdfHtmlContent).save().then(() => {
-              btn.innerHTML = originalHTML;
-              btn.disabled = false;
-            }).catch(() => {
-              btn.innerHTML = originalHTML;
-              btn.disabled = false;
-            });
-          }
+          
+          html2pdf().set(opt).from(window.currentPdfHtmlContent).save().then(() => {
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+          });
         }
       }
+
 function generateReportHtml() {
         const data = window.lastDashboardData;
         if (!data || !data.success) return '';
@@ -2929,7 +2864,7 @@ function generateReportHtml() {
         const showScoreTable = filters.contentFilter === 'all' || filters.contentFilter === 'score_only';
         const showTrend = filters.contentFilter === 'all' || filters.contentFilter === 'trend_only';
         const showComment = filters.contentFilter === 'all' || filters.contentFilter === 'comment_only';
-        const showOverview = filters.contentFilter === 'all' || filters.contentFilter === 'overview_only';
+        const showOverview = showScoreTable || showTrend; // Show overview if either score or trend is requested
 
         let dateText = 'ข้อมูลทั้งหมด';
         if (filters.dateRange === 'today') dateText = 'เฉพาะวันนี้';
@@ -3093,7 +3028,7 @@ function generateReportHtml() {
           hasAnyData = true;
         }
 
-        if (showTrend) {
+        if (showTrend && data.trendData && data.trendData.labels && data.trendData.labels.length > 0) {
           // Section 3: แนวโน้มความพึงพอใจรายวัน
           html += `
             <div style="margin-bottom: 12mm; page-break-before: always;">
@@ -3110,26 +3045,17 @@ function generateReportHtml() {
                 <tbody>
           `;
 
-          const hasTrendData = data && data.trendData && Array.isArray(data.trendData.labels) && data.trendData.labels.length > 0;
-          if (hasTrendData) {
-            for (let i = 0; i < data.trendData.labels.length; i++) {
-              const label = data.trendData.labels[i];
-              const e = (data.trendData.excellent && data.trendData.excellent[i]) || 0;
-              const g = (data.trendData.good && data.trendData.good[i]) || 0;
-              const p = (data.trendData.poor && data.trendData.poor[i]) || 0;
-              html += `
-                    <tr>
-                      <td style="padding: 3mm; border: 1px solid #000; text-align: center;">${label}</td>
-                      <td style="padding: 3mm; border: 1px solid #000;">${e}</td>
-                      <td style="padding: 3mm; border: 1px solid #000;">${g}</td>
-                      <td style="padding: 3mm; border: 1px solid #000;">${p}</td>
-                    </tr>
-              `;
-            }
-          } else {
+          for (let i = 0; i < data.trendData.labels.length; i++) {
+            const label = data.trendData.labels[i];
+            const e = data.trendData.excellent[i] || 0;
+            const g = data.trendData.good[i] || 0;
+            const p = data.trendData.poor[i] || 0;
             html += `
                   <tr>
-                    <td colspan="4" style="padding: 3mm; border: 1px solid #000; text-align: center; color: #64748b;">ไม่มีข้อมูลแนวโน้มความพึงพอใจในช่วงเวลานี้</td>
+                    <td style="padding: 3mm; border: 1px solid #000; text-align: center;">${label}</td>
+                    <td style="padding: 3mm; border: 1px solid #000;">${e}</td>
+                    <td style="padding: 3mm; border: 1px solid #000;">${g}</td>
+                    <td style="padding: 3mm; border: 1px solid #000;">${p}</td>
                   </tr>
             `;
           }
@@ -3142,88 +3068,57 @@ function generateReportHtml() {
           hasAnyData = true;
         }
 
-        if (showComment) {
-          const isSingleSection = filters.contentFilter === 'comment_only';
-          const pageBreakStyle = (!isSingleSection) ? 'page-break-before: always;' : 'margin-top: 5mm;';
+        if (showComment && allComments.length > 0) {
+          // Section 4: ข้อเสนอแนะเพิ่มเติม - แบ่งหน้าละ 10 รายการ
+          const COMMENT_PER_PAGE = 10;
+          const commentChunks = [];
+          for (let i = 0; i < allComments.length; i += COMMENT_PER_PAGE) {
+            commentChunks.push(allComments.slice(i, i + COMMENT_PER_PAGE));
+          }
 
-          if (allComments.length > 0) {
-            const COMMENT_PER_PAGE = 10;
-            const commentChunks = [];
-            for (let i = 0; i < allComments.length; i += COMMENT_PER_PAGE) {
-              commentChunks.push(allComments.slice(i, i + COMMENT_PER_PAGE));
+          commentChunks.forEach((chunk, ci) => {
+            html += `<div style="page-break-before: always; height: 1px; clear: both;"></div>`;
+            html += `<div style="margin-bottom: 5mm; padding-top: 2px;">`;
+            if (ci === 0) {
+              html += `<h2 style="font-size: 14pt; margin-bottom: 3mm; font-weight: bold;">${secNum}. ข้อเสนอแนะเพิ่มเติม</h2>`;
             }
-
-            commentChunks.forEach((chunk, ci) => {
-              if (ci > 0 || !isSingleSection) {
-                html += `<div style="page-break-before: always; height: 1px; clear: both;"></div>`;
-              }
-              html += `<div style="margin-bottom: 5mm; padding-top: 2px;">`;
-              if (ci === 0) {
-                html += `<h2 style="font-size: 14pt; margin-bottom: 3mm; font-weight: bold;">${secNum}. ข้อเสนอแนะเพิ่มเติม</h2>`;
-              }
-              
-              html += `
-                <table style="width: 100%; border-collapse: collapse; font-size: 11pt;">
-                  <thead>
-                    <tr>
-                      <th style="padding: 3mm; border: 1px solid #000; text-align: center; width: 10%;">ลำดับ</th>
-                      <th style="padding: 3mm; border: 1px solid #000; text-align: left; width: 45%;">ข้อเสนอแนะ</th>
-                      <th style="padding: 3mm; border: 1px solid #000; text-align: center; width: 25%;">เจ้าหน้าที่</th>
-                      <th style="padding: 3mm; border: 1px solid #000; text-align: center; width: 20%;">ผู้ประเมิน</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-              `;
-
-              chunk.forEach((c, cIdx) => {
-                const absIdx = ci * COMMENT_PER_PAGE + cIdx;
-                let ratingLabel = '';
-                if (c.rating === 3) ratingLabel = '[ดีเยี่ยม]';
-                else if (c.rating === 2) ratingLabel = '[ดี]';
-                else if (c.rating === 1) ratingLabel = '[ควรปรับปรุง]';
-
-                html += `
+            
+            html += `
+              <table style="width: 100%; border-collapse: collapse; font-size: 11pt;">
+                <thead>
                   <tr>
-                    <td style="padding: 3mm; border: 1px solid #000; text-align: center;">${absIdx + 1}</td>
-                    <td style="padding: 3mm; border: 1px solid #000; text-align: left;">${ratingLabel} ${escapeHtml(c.text)}</td>
-                    <td style="padding: 3mm; border: 1px solid #000; text-align: center;">${escapeHtml(c.staffName)}</td>
-                    <td style="padding: 3mm; border: 1px solid #000; text-align: center;">${escapeHtml(c.evaluator)}</td>
+                    <th style="padding: 3mm; border: 1px solid #000; text-align: center; width: 10%;">ลำดับ</th>
+                    <th style="padding: 3mm; border: 1px solid #000; text-align: left; width: 45%;">ข้อเสนอแนะ</th>
+                    <th style="padding: 3mm; border: 1px solid #000; text-align: center; width: 25%;">เจ้าหน้าที่</th>
+                    <th style="padding: 3mm; border: 1px solid #000; text-align: center; width: 20%;">ผู้ประเมิน</th>
                   </tr>
-                `;
-              });
+                </thead>
+                <tbody>
+            `;
+
+            chunk.forEach((c, cIdx) => {
+              const absIdx = ci * COMMENT_PER_PAGE + cIdx;
+              let ratingLabel = '';
+              if (c.rating === 3) ratingLabel = '[ดีเยี่ยม]';
+              else if (c.rating === 2) ratingLabel = '[ดี]';
+              else if (c.rating === 1) ratingLabel = '[ควรปรับปรุง]';
 
               html += `
-                  </tbody>
-                </table>
-              </div>
+                <tr>
+                  <td style="padding: 3mm; border: 1px solid #000; text-align: center;">${absIdx + 1}</td>
+                  <td style="padding: 3mm; border: 1px solid #000; text-align: left;">${ratingLabel} ${escapeHtml(c.text)}</td>
+                  <td style="padding: 3mm; border: 1px solid #000; text-align: center;">${escapeHtml(c.staffName)}</td>
+                  <td style="padding: 3mm; border: 1px solid #000; text-align: center;">${escapeHtml(c.evaluator)}</td>
+                </tr>
               `;
             });
-          } else {
-            // กรณีไม่มีข้อเสนอแนะ ให้แสดงตารางพร้อมข้อความแจ้งชัดเจน
+
             html += `
-              <div style="${pageBreakStyle} margin-bottom: 12mm;">
-                <h2 style="font-size: 14pt; margin-bottom: 3mm; font-weight: bold;">${secNum}. ข้อเสนอแนะเพิ่มเติม</h2>
-                <table style="width: 100%; border-collapse: collapse; font-size: 11pt;">
-                  <thead>
-                    <tr>
-                      <th style="padding: 3mm; border: 1px solid #000; text-align: center; width: 10%;">ลำดับ</th>
-                      <th style="padding: 3mm; border: 1px solid #000; text-align: left; width: 45%;">ข้อเสนอแนะ</th>
-                      <th style="padding: 3mm; border: 1px solid #000; text-align: center; width: 25%;">เจ้าหน้าที่</th>
-                      <th style="padding: 3mm; border: 1px solid #000; text-align: center; width: 20%;">ผู้ประเมิน</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td colspan="4" style="padding: 8mm 3mm; border: 1px solid #000; text-align: center; color: #64748b; font-size: 12pt;">
-                        <i class="far fa-comment-dots" style="font-size: 1.5rem; display: block; margin-bottom: 6px; color: #94a3b8;"></i>
-                        ไม่มีข้อเสนอแนะเพิ่มเติมในช่วงเวลานี้
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+                </tbody>
+              </table>
+            </div>
             `;
-          }
+          });
           hasAnyData = true;
         }
 
@@ -3561,19 +3456,19 @@ function generateReportHtml() {
           html: `
             ${avatarHtml}
             <div style="display: flex; justify-content: space-around; background: linear-gradient(145deg, #ffffff, #f1f5f9); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-              <div style="text-align: center; flex: 1; min-width: 0;">
+              <div style="text-align: center; width: 30%;">
                 <div style="font-size: 1.8rem; font-weight: bold; color: #388E3C;">${data.excellent}</div>
-                <div style="font-size: 0.85rem; color: #64748b; font-weight: 500; white-space: nowrap;">😄 ดีมาก</div>
+                <div style="font-size: 0.85rem; color: #64748b; font-weight: 500;">😄 ดีมาก</div>
               </div>
               <div style="border-right: 1px solid #cbd5e1;"></div>
-              <div style="text-align: center; flex: 1; min-width: 0;">
+              <div style="text-align: center; width: 30%;">
                 <div style="font-size: 1.8rem; font-weight: bold; color: #F57C00;">${data.good}</div>
-                <div style="font-size: 0.85rem; color: #64748b; font-weight: 500; white-space: nowrap;">😐 ปานกลาง</div>
+                <div style="font-size: 0.85rem; color: #64748b; font-weight: 500;">😐 ปานกลาง</div>
               </div>
               <div style="border-right: 1px solid #cbd5e1;"></div>
-              <div style="text-align: center; flex: 1; min-width: 0;">
+              <div style="text-align: center; width: 30%;">
                 <div style="font-size: 1.8rem; font-weight: bold; color: #D32F2F;">${data.poor}</div>
-                <div style="font-size: 0.85rem; color: #64748b; font-weight: 500; white-space: nowrap;">😞 ปรับปรุง</div>
+                <div style="font-size: 0.85rem; color: #64748b; font-weight: 500;">😞 ปรับปรุง</div>
               </div>
             </div>
             ${commentsHtml}
@@ -4266,7 +4161,7 @@ function generateReportHtml() {
           return;
         }
 
-        const targetUrl = 'https://liff.line.me/2011164567-UjK6uTMI?counter=' + staff.id;
+        const targetUrl = adminWebAppUrl + '?counter=' + staff.id;
         const qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(targetUrl);
 
         const canvas = document.getElementById('qrCanvas');
